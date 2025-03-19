@@ -1,0 +1,98 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env/
+.venv/
+pyenv/
+pipenv/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# PyTorch specific
+*.pt
+*.pth
+*.ckpt
+lightning_logs/
+tb_logs/
+wandb/
+mlruns/
+
+# Data files (uncomment if you don't want to track data)
+# *.csv
+*.npy
+# *.npz
+# *.h5
+# *.hdf5
+# *.pkl
+# *.pickle
+data/
+# datasets/
+
+# Model save files
+saved_models/
+checkpoints/
+logs/
+results/
+runs/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.spyderproject
+.spyproject
+.ropeproject
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover
+
+# Hydra configs
+outputs/
+multirun/
+
+# Misc
+.DS_Store
+*.log
+*.bak
+*.npy
+*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif

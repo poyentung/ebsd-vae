@@ -1,0 +1,8 @@
+_target_: src.data_module.DPDataModule
+
+path: ${data_dir}/N=100_noised.npy
+rot_angles_path: ${data_dir}/anglefile_N=100.txt
+image_size: [128, 128]
+val_data_ratio: 0.1
+batch_size: 64
+n_cpu: 4

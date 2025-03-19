@@ -1,0 +1,16 @@
+defaults:
+  - data_module: default.yaml
+  - lightning_module: default.yaml
+  - trainer: default.yaml
+  - _self_
+
+root_dir: ${hydra:runtime.cwd}
+data_dir: ${root_dir}/data
+model_name: EBSD_VAE
+
+seed: 0
+
+trainer:
+  precision: 16-mixed
+  accelerator: cpu
+  devices: auto

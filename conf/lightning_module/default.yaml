@@ -1,0 +1,21 @@
+_target_: src.lightning_module.VAELightningModule
+
+kl_lambda: 5e-6
+
+model:
+  _target_: src.model.VariationalAutoEncoderRawData
+  image_size: [128, 128]
+  inplanes: 32
+
+optimizer_partial:
+  _partial_: true
+  _target_: torch.optim.Adam
+  lr: 1e-4
+
+lr_scheduler_partial:
+  _partial_: true
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  factor: 0.1
+  patience: 10
+  verbose: true
+
