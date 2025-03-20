@@ -24,7 +24,7 @@
 
 3. Install the required dependencies:
    ```bash
-   uv pip install .
+   uv pip install -e .
    ```
 
 ## Example Usage
