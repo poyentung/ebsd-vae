@@ -7,7 +7,7 @@
 1. Clone the repository:
    ```bash
    git clone https://github.com/yourusername/ebsd-vae.git
-   cd diffraction-pattern-vae
+   cd ebsd-vae
    ```
 
 2. Create and activate a virtual environment (optional but recommended):
