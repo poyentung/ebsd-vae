@@ -272,7 +272,8 @@ class VAELightningModule(pl.LightningModule):
 
         return metrics
 
-    def on_train_epoch_end(self, training_step_outputs: list[STEP_OUTPUT]) -> None:
+    def on_train_epoch_end(self) -> None:
+        training_step_outputs = self.training_step_outputs
         epoch_train_loss = torch.stack(
             [x["loss"] for x in training_step_outputs]
         ).mean()
@@ -310,7 +311,8 @@ class VAELightningModule(pl.LightningModule):
 
         return metrics
 
-    def on_validation_epoch_end(self, valid_step_outputs: list[STEP_OUTPUT]) -> None:
+    def on_validation_epoch_end(self) -> None:
+        valid_step_outputs = self.validation_step_outputs
         epoch_val_loss = torch.stack([x["val_loss"] for x in valid_step_outputs]).mean()
         epoch_val_kl_loss = torch.stack(
             [x["val_kl_loss"] for x in valid_step_outputs]
