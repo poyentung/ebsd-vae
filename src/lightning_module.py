@@ -6,7 +6,7 @@ from torch.optim import Optimizer, Adam
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from typing import Any, Protocol
 from .model import VariationalAutoEncoder
-from .utils import plot_detection, log_fig
+from .utils.utils import plot_detection, log_fig
 
 
 class OptimizerPartial(Protocol):
