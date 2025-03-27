@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Callable
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
@@ -12,6 +13,25 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+def create_default_transform(image_size: tuple[int, int]) -> transforms.Compose:
+    """Create default transform pipeline with specified image size.
+
+    Args:
+        image_size: Tuple of (height, width) for the output image
+
+    Returns:
+        Composed transform pipeline
+    """
+    return transforms.Compose(
+        [
+            transforms.ToPILImage(),
+            transforms.Grayscale(),
+            transforms.CenterCrop(size=image_size),
+            transforms.ToTensor(),
+        ]
+    )
 
 
 class DPdataset(Dataset):
@@ -31,6 +51,7 @@ class DPdataset(Dataset):
         path: str | Path,
         rot_angles_path: str | Path,
         image_size: tuple[int, int] = (128, 128),
+        transform: transforms.Compose | None = None,
     ) -> None:
         """Initialize the Diffraction Pattern dataset.
 
@@ -60,14 +81,7 @@ class DPdataset(Dataset):
         # Parse rotation angles file more efficiently
         self.rot_angles = self._parse_rotation_angles(rot_angles_path)
 
-        self.transform = transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.Grayscale(),
-                transforms.CenterCrop(size=image_size),
-                transforms.ToTensor(),
-            ]
-        )
+        self.transform = transform or create_default_transform(image_size)
 
         logger.info(f"Dataset initialized with {len(self)} samples")
 
@@ -116,7 +130,7 @@ class DPdataset(Dataset):
             Tuple containing (transformed diffraction pattern, rotation angle).
         """
         rot_angle = np.array(self.rot_angles.loc[idx])
-        dp = self.ebsp_dataset[idx].astype(np.float32)
+        dp = self.ebsp_dataset[idx].astype(np.float64)
         return self.transform(dp), rot_angle
 
 
@@ -141,6 +155,7 @@ class DPDataModule(pl.LightningDataModule):
         batch_size: int = 32,
         n_cpu: int = 4,
         seed: int = 42,
+        transform: transforms.Compose | None = None,
     ):
         """Initialize the DataModule.
 
@@ -161,12 +176,15 @@ class DPDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.n_cpu = n_cpu
         self.seed = seed
+        self.transform = transform or create_default_transform(image_size)
 
         # Set random seeds for reproducibility
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-        self.dataset_full = DPdataset(self.path, self.rot_angles_path, self.image_size)
+        self.dataset_full = DPdataset(
+            self.path, self.rot_angles_path, self.image_size, self.transform
+        )
 
     def setup(self, stage: str | None = None) -> None:
         """Set up datasets for the specified stage.
