@@ -2,6 +2,7 @@ import torch
 import random
 import numpy as np
 from numpy.typing import NDArray
+from math import pi, sqrt
 import altair as alt
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
@@ -11,7 +12,42 @@ from matplotlib.figure import Figure
 from PIL import Image
 
 from scipy.spatial.transform import Rotation as R
-from .colorkey import ColorKeyGenerator
+from src.utils.colorkey import ColorKeyGenerator
+
+# Constants
+PI_OVER_180 = pi / 180
+K_180_OVER_PI = 180 / pi
+SQRT2_INV = 1 / sqrt(2)
+SQRT3_INV = 1 / sqrt(3)
+USE_INVERSION = True
+
+CUBIC_SYMMETRY = [
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 1, 0],
+    [0, 0, 0, 1],
+    [0.5, 0.5, 0.5, 0.5],
+    [0.5, -0.5, -0.5, -0.5],
+    [0.5, 0.5, -0.5, 0.5],
+    [0.5, -0.5, 0.5, -0.5],
+    [0.5, -0.5, 0.5, 0.5],
+    [0.5, 0.5, -0.5, -0.5],
+    [0.5, -0.5, -0.5, 0.5],
+    [0.5, 0.5, 0.5, -0.5],
+    [SQRT2_INV, SQRT2_INV, 0, 0],
+    [SQRT2_INV, 0, SQRT2_INV, 0],
+    [SQRT2_INV, 0, 0, SQRT2_INV],
+    [SQRT2_INV, -SQRT2_INV, 0, 0],
+    [SQRT2_INV, 0, -SQRT2_INV, 0],
+    [SQRT2_INV, 0, 0, -SQRT2_INV],
+    [0, SQRT2_INV, SQRT2_INV, 0],
+    [0, -SQRT2_INV, SQRT2_INV, 0],
+    [0, 0, SQRT2_INV, SQRT2_INV],
+    [0, 0, -SQRT2_INV, SQRT2_INV],
+    [0, SQRT2_INV, 0, SQRT2_INV],
+    [0, -SQRT2_INV, 0, SQRT2_INV],
+]
+QUAT_SYM = R.from_quat(CUBIC_SYMMETRY)
 
 # Set random seed for reproducibility
 RANDOM_SEED = 42

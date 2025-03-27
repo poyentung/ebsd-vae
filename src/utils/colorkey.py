@@ -7,44 +7,14 @@ for crystallographic orientations, primarily for hexagonal crystals.
 
 import numpy as np
 from numpy.typing import NDArray
-from math import pi, acos, atan2, sqrt
-from scipy.spatial.transform import Rotation as R
+from math import acos, atan2, sqrt
 
-# Constants
-PI_OVER_180 = pi / 180
-K_180_OVER_PI = 180 / pi
-SQRT2_INV = 1 / sqrt(2)
-SQRT3_INV = 1 / sqrt(3)
-USE_INVERSION = True
-
-# Hexagonal quaternion symmetry operators
-HEX_QUAT_SYM = R.from_quat(
-    [
-        [1, 0, 0, 0],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1],
-        [0.5, 0.5, 0.5, 0.5],
-        [0.5, -0.5, -0.5, -0.5],
-        [0.5, 0.5, -0.5, 0.5],
-        [0.5, -0.5, 0.5, -0.5],
-        [0.5, -0.5, 0.5, 0.5],
-        [0.5, 0.5, -0.5, -0.5],
-        [0.5, -0.5, -0.5, 0.5],
-        [0.5, 0.5, 0.5, -0.5],
-        [SQRT2_INV, SQRT2_INV, 0, 0],
-        [SQRT2_INV, 0, SQRT2_INV, 0],
-        [SQRT2_INV, 0, 0, SQRT2_INV],
-        [SQRT2_INV, -SQRT2_INV, 0, 0],
-        [SQRT2_INV, 0, -SQRT2_INV, 0],
-        [SQRT2_INV, 0, 0, -SQRT2_INV],
-        [0, SQRT2_INV, SQRT2_INV, 0],
-        [0, -SQRT2_INV, SQRT2_INV, 0],
-        [0, 0, SQRT2_INV, SQRT2_INV],
-        [0, 0, -SQRT2_INV, SQRT2_INV],
-        [0, SQRT2_INV, 0, SQRT2_INV],
-        [0, -SQRT2_INV, 0, SQRT2_INV],
-    ]
+from src.utils.constants import (
+    QUAT_SYM,
+    PI_OVER_180,
+    K_180_OVER_PI,
+    SQRT3_INV,
+    USE_INVERSION,
 )
 
 
@@ -105,7 +75,7 @@ class ColorKeyGenerator:
 
         # Get 24 symmetric vectors, size = [24,3]
         equivalent_zone_axes = np.matmul(
-            HEX_QUAT_SYM.as_matrix(), np.tile(zone_axis, [24, 1])[:, :, np.newaxis]
+            QUAT_SYM.as_matrix(), np.tile(zone_axis, [24, 1])[:, :, np.newaxis]
         ).squeeze()
 
         # Add the opposite direction to the equivalent zone axes
