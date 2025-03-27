@@ -87,16 +87,10 @@ class VariationalAutoEncoderRawData(VariationalAutoEncoder):
     series of convolutional layers.
     """
 
-    def __init__(
-        self,
-        image_size: tuple[int, int] = (128, 128),
-        inplanes: int = 32,
-        latent_dim: int = 16,
-    ) -> None:
+    def __init__(self, inplanes: int = 32, latent_dim: int = 16) -> None:
         """Initialize the VAE for raw image data.
 
         Args:
-            image_size: Tuple of (height, width) for input images.
             inplanes: Base number of convolutional filters.
             latent_dim: Dimension of the latent space.
         """
