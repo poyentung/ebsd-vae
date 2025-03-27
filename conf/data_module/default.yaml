@@ -6,3 +6,12 @@ image_size: [128, 128]
 val_data_ratio: 0.1
 batch_size: 64
 n_cpu: 4
+
+transform:
+  _target_: torchvision.transforms.Compose
+  transforms:
+    - _target_: torchvision.transforms.ToPILImage
+    - _target_: torchvision.transforms.Grayscale
+    - _target_: torchvision.transforms.CenterCrop
+      size: ${data_module.image_size}
+    - _target_: torchvision.transforms.ToTensor

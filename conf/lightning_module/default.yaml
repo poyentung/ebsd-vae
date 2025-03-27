@@ -4,8 +4,8 @@ kl_lambda: 5e-6
 
 model:
   _target_: src.model.VariationalAutoEncoderRawData
-  image_size: [128, 128]
   inplanes: 32
+  latent_dim: 16
 
 optimizer_partial:
   _partial_: true
