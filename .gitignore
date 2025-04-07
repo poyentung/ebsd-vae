@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.chroma_db/
 
 # Distribution / packaging
 build/
