@@ -56,6 +56,24 @@ np.random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
 
+def get_device() -> torch.device:
+    """Return appropriate device based on available hardware.
+
+    Returns:
+        Device object for 'cuda' (NVIDIA GPUs), 'mps' (Apple Silicon), or 'cpu' (fallback)
+    """
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    elif (
+        hasattr(torch, "backends")
+        and hasattr(torch.backends, "mps")
+        and torch.backends.mps.is_available()
+    ):
+        return torch.device("mps")
+    else:
+        return torch.device("cpu")
+
+
 def plot_detection(
     imgs: torch.Tensor,
     recon_imgs: torch.Tensor,
