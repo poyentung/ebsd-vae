@@ -1,3 +1,4 @@
+from functools import cached_property
 from pydantic.dataclasses import dataclass
 import logging
 from pathlib import Path
@@ -7,9 +8,16 @@ import numpy as np
 from numpy.typing import NDArray
 import torch
 from torch.utils.data import DataLoader
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TimeElapsedColumn,
+    BarColumn,
+    TextColumn,
+)
 
 from src.data_module import DPDataModule, create_default_transform
-from src.index.chroma_db import LatentVectorDatabase
+from src.index.chroma_db import LatentVectorDatabase, OrientationResult
 from src.model import VariationalAutoEncoder
 
 logger = logging.getLogger(__name__)
@@ -84,9 +92,7 @@ class DiffractionPatternIndexer:
         self.model.eval()
         self.model.to(self.device)
 
-        self.build_dictionary(self.config.pattern_path, self.config.angles_path)
-
-    def build_dictionary(self, pattern_path: Path, angles_path: Path) -> None:
+    def build_dictionary(self) -> None:
         """Generate latent vectors from patterns and add to database.
 
         Args:
@@ -95,9 +101,11 @@ class DiffractionPatternIndexer:
             save_latent: Whether to save latent vectors to disk
             latent_output_path: Path to save latent vectors
         """
-        data_module = self._create_dataloader()
+        data_module = self._create_dataloader
 
-        logger.info(f"Generating latent vectors from patterns in {pattern_path}")
+        logger.info(
+            f"Generating latent vectors from patterns in {self.config.pattern_path}"
+        )
         latent_vectors, orientations = self._extract_latent_vectors_with_angles(
             data_module
         )
@@ -128,8 +136,8 @@ class DiffractionPatternIndexer:
         pattern = pattern.to(self.device)
 
         with torch.no_grad():
-            z, _, _, _ = self.model(pattern)
-        return z.cpu().numpy().squeeze()
+            _, _, mu, _ = self.model(pattern)
+        return mu.cpu().numpy().squeeze()
 
     def encode_patterns_batch(
         self, patterns: NDArray[np.float64] | torch.Tensor
@@ -176,8 +184,8 @@ class DiffractionPatternIndexer:
         with torch.no_grad():
             for i in range(0, n_patterns, batch_size):
                 batch = patterns[i : i + batch_size]
-                z, _, _, _ = self.model(batch)
-                latent_vectors.append(z.cpu().numpy())
+                _, _, mu, _ = self.model(batch)
+                latent_vectors.append(mu.cpu().numpy())
 
         return np.vstack(latent_vectors)
 
@@ -186,7 +194,7 @@ class DiffractionPatternIndexer:
         pattern: NDArray[np.float64] | torch.Tensor,
         top_n: int | None = None,
         orientation_threshold: float | None = None,
-    ) -> NDArray[np.float64]:
+    ) -> OrientationResult:
         """Index a diffraction pattern and return the best orientation.
 
         Args:
@@ -227,6 +235,7 @@ class DiffractionPatternIndexer:
         )
         return orientations
 
+    @cached_property
     def _create_dataloader(self) -> DataLoader:
         """Create a data module for the given pattern and rotation angles.
 
@@ -258,24 +267,32 @@ class DiffractionPatternIndexer:
             Tuple of (latent_vectors, orientations)
         """
         latent_vectors, orientations = [], []
-        total_batches = len(data_loader)
 
-        logger.info(f"Processing {total_batches} batches...")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+        ) as progress:
+            # Create the main task
+            task = progress.add_task(
+                "[cyan]Processing patterns...", total=len(data_loader)
+            )
+            with torch.no_grad():
+                for batch in data_loader:
+                    data, angles = batch
+                    data = data.to(self.device)
 
-        with torch.no_grad():
-            for batch in data_loader:
-                data, angles = batch
-                data = data.to(self.device)
+                    # Encode pattern to latent space
+                    _, _, mu, _ = self.model(data)
 
-                # Encode pattern to latent space
-                enc = self.model.encoder(data)
-                mu = self.model.mu(enc.flatten(1, -1))
-                logvar = self.model.logvar(enc.flatten(1, -1))
-                z = self.model.reparameterize(mu, logvar)
+                    # Convert to numpy and append
+                    latent_vectors.append(mu.cpu().numpy())
+                    orientations.append(angles.numpy())
 
-                # Convert to numpy and append
-                latent_vectors.append(z.cpu().numpy())
-                orientations.append(angles.numpy())
+                    # Update progress bar
+                    progress.update(task, advance=1)
 
         # Concatenate all batches
         latent_vectors = np.concatenate(latent_vectors, axis=0)

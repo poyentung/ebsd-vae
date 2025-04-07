@@ -80,6 +80,142 @@ class VariationalAutoEncoder(nn.Module):
             m.bias.data.fill_(0)
 
 
+# class VariationalAutoEncoderRawData(VariationalAutoEncoder):
+#     """Variational Autoencoder implementation for raw image data.
+
+#     This VAE architecture is designed to work with grayscale images through a
+#     series of convolutional layers.
+#     """
+
+#     def __init__(self, inplanes: int = 32, latent_dim: int = 16) -> None:
+#         """Initialize the VAE for raw image data.
+
+#         Args:
+#             inplanes: Base number of convolutional filters.
+#             latent_dim: Dimension of the latent space.
+#         """
+#         super().__init__()
+
+#         # Create encoder and decoder components
+#         self._create_network(inplanes, latent_dim)
+
+#     def _create_conv_block(
+#         self,
+#         in_dim: int,
+#         out_dim: int,
+#         filter_size: int = 3,
+#         stride: int = 1,
+#         padding: int = 1,
+#     ) -> nn.Sequential:
+#         """Create a standard convolutional block.
+
+#         Args:
+#             in_dim: Number of input channels.
+#             out_dim: Number of output channels.
+#             filter_size: Size of convolutional kernel.
+#             stride: Stride of convolution.
+#             padding: Padding size.
+
+#         Returns:
+#             A sequential container of convolutional block layers.
+#         """
+#         return nn.Sequential(
+#             nn.Conv2d(in_dim, out_dim, filter_size, stride=stride, padding=padding),
+#             nn.InstanceNorm2d(out_dim),
+#             nn.LeakyReLU(0.02),
+#         )
+
+#     def _create_transpose_conv_block(
+#         self,
+#         in_dim: int,
+#         out_dim: int,
+#         filter_size: int = 3,
+#         stride: int = 1,
+#         padding: int = 1,
+#     ) -> nn.Sequential:
+#         """Create a standard transpose convolutional block.
+
+#         Args:
+#             in_dim: Number of input channels.
+#             out_dim: Number of output channels.
+#             filter_size: Size of convolutional kernel.
+#             stride: Stride of convolution.
+#             padding: Padding size.
+
+#         Returns:
+#             A sequential container of transpose convolutional block layers.
+#         """
+#         return nn.Sequential(
+#             nn.ConvTranspose2d(
+#                 in_dim, out_dim, filter_size, stride=stride, padding=padding
+#             ),
+#             nn.InstanceNorm2d(out_dim),
+#             nn.LeakyReLU(0.02),
+#         )
+
+#     def _create_network(self, inplanes: int, latent_dim: int) -> None:
+#         """Create the encoder and decoder networks.
+
+#         Args:
+#             inplanes: Base number of convolutional filters.
+#             latent_dim: Dimension of the latent space.
+#         """
+#         # Calculate the size of flattened features after encoder
+#         flat_features = inplanes * 4 * 4 * 4
+
+#         # Create encoder
+#         self.encoder = self._create_encoder(inplanes)
+
+#         # Create latent space projections
+#         self.mu = nn.Linear(flat_features, latent_dim)
+#         self.logvar = nn.Linear(flat_features, latent_dim)
+#         self.linear2 = nn.Linear(latent_dim, flat_features)
+
+#         # Create decoder
+#         self.decoder = self._create_decoder(inplanes)
+
+#     def _create_encoder(self, inplanes: int) -> nn.Sequential:
+#         """Create the encoder network."""
+#         return nn.Sequential(
+#             self._create_conv_block(1, inplanes),
+#             self._create_conv_block(inplanes, inplanes),
+#             nn.MaxPool2d(2, 2),  # size = [batch,inplanes,image_size/2,image_size/2]
+#             self._create_conv_block(inplanes, inplanes * 2),
+#             self._create_conv_block(inplanes * 2, inplanes * 2),
+#             nn.MaxPool2d(2, 2),  # size = [batch,inplanes*2,image_size/4,image_size/4]
+#             self._create_conv_block(inplanes * 2, inplanes * 4),
+#             self._create_conv_block(inplanes * 4, inplanes * 4),
+#             nn.MaxPool2d(2, 2),  # size = [batch,inplanes*4,image_size/8,image_size/8]
+#             self._create_conv_block(inplanes * 4, inplanes * 4),
+#             self._create_conv_block(inplanes * 4, inplanes * 4),
+#             nn.MaxPool2d(2, 2),  # size = [batch,inplanes*4,image_size/16,image_size/16]
+#             self._create_conv_block(inplanes * 4, inplanes * 4),
+#             self._create_conv_block(inplanes * 4, inplanes * 4),
+#             nn.MaxPool2d(2, 2),  # size = [batch,inplanes*4,image_size/32,image_size/32]
+#         )
+
+#     def _create_decoder(self, inplanes: int) -> nn.Sequential:
+#         """Create the decoder network."""
+#         return nn.Sequential(
+#             nn.UpsamplingNearest2d(scale_factor=2),
+#             self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
+#             self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
+#             nn.UpsamplingNearest2d(scale_factor=2),
+#             self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
+#             self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
+#             nn.UpsamplingNearest2d(scale_factor=2),
+#             self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
+#             self._create_transpose_conv_block(inplanes * 4, inplanes * 2),
+#             nn.UpsamplingNearest2d(scale_factor=2),
+#             self._create_transpose_conv_block(inplanes * 2, inplanes * 2),
+#             self._create_transpose_conv_block(inplanes * 2, inplanes),
+#             nn.UpsamplingNearest2d(scale_factor=2),
+#             self._create_transpose_conv_block(inplanes, inplanes),
+#             nn.Conv2d(inplanes, 1, 3, 1, 1),
+#             # nn.Sigmoid()  # Uncomment if needed for your specific use case
+#         )
+
+
 class VariationalAutoEncoderRawData(VariationalAutoEncoder):
     """Variational Autoencoder implementation for raw image data.
 
@@ -87,130 +223,64 @@ class VariationalAutoEncoderRawData(VariationalAutoEncoder):
     series of convolutional layers.
     """
 
-    def __init__(self, inplanes: int = 32, latent_dim: int = 16) -> None:
-        """Initialize the VAE for raw image data.
-
-        Args:
-            inplanes: Base number of convolutional filters.
-            latent_dim: Dimension of the latent space.
-        """
+    def __init__(self, inplanes: int = 32, latent_dim: int = 16):
         super().__init__()
 
-        # Create encoder and decoder components
-        self._create_network(inplanes, latent_dim)
+        def building_blocks(in_dim, out_dim, filter_size=3, stride=1, padding=1):
+            return nn.Sequential(
+                nn.Conv2d(in_dim, out_dim, filter_size, stride=stride, padding=padding),
+                nn.InstanceNorm2d(out_dim),
+                nn.LeakyReLU(0.02),
+            )
 
-    def _create_conv_block(
-        self,
-        in_dim: int,
-        out_dim: int,
-        filter_size: int = 3,
-        stride: int = 1,
-        padding: int = 1,
-    ) -> nn.Sequential:
-        """Create a standard convolutional block.
+        def building_blocks_trans(in_dim, out_dim, filter_size=3, stride=1, padding=1):
+            return nn.Sequential(
+                nn.ConvTranspose2d(
+                    in_dim, out_dim, filter_size, stride=stride, padding=padding
+                ),
+                nn.InstanceNorm2d(out_dim),
+                nn.LeakyReLU(0.02),
+            )
 
-        Args:
-            in_dim: Number of input channels.
-            out_dim: Number of output channels.
-            filter_size: Size of convolutional kernel.
-            stride: Stride of convolution.
-            padding: Padding size.
-
-        Returns:
-            A sequential container of convolutional block layers.
-        """
-        return nn.Sequential(
-            nn.Conv2d(in_dim, out_dim, filter_size, stride=stride, padding=padding),
-            nn.InstanceNorm2d(out_dim),
-            nn.LeakyReLU(0.02),
+        self.encoder = nn.Sequential(
+            building_blocks(1, inplanes, 3, 1, 1),
+            building_blocks(inplanes, inplanes, 3, 1, 1),
+            nn.MaxPool2d(2, 2),  # size = [batch,16,image_size/2,image_size/2]
+            building_blocks(inplanes, inplanes * 2, 3, 1, 1),
+            building_blocks(inplanes * 2, inplanes * 2, 3, 1, 1),
+            nn.MaxPool2d(2, 2),  # size = [batch,32,image_size/4,image_size/4]
+            building_blocks(inplanes * 2, inplanes * 4, 3, 1, 1),
+            building_blocks(inplanes * 4, inplanes * 4, 3, 1, 1),
+            nn.MaxPool2d(2, 2),  # size = [batch,64,image_size/8,image_size/8]
+            building_blocks(inplanes * 4, inplanes * 4, 3, 1, 1),
+            building_blocks(inplanes * 4, inplanes * 4, 3, 1, 1),
+            nn.MaxPool2d(2, 2),  # size = [batch,64,image_size/16,image_size/16]
+            building_blocks(inplanes * 4, inplanes * 4, 3, 1, 1),
+            building_blocks(inplanes * 4, inplanes * 4, 3, 1, 1),
+            nn.MaxPool2d(2, 2),  # size = [batch,64,image_size/32,image_size/32]
         )
 
-    def _create_transpose_conv_block(
-        self,
-        in_dim: int,
-        out_dim: int,
-        filter_size: int = 3,
-        stride: int = 1,
-        padding: int = 1,
-    ) -> nn.Sequential:
-        """Create a standard transpose convolutional block.
+        self.mu = nn.Sequential(nn.Linear(inplanes * 4 * 4 * 4, latent_dim))
 
-        Args:
-            in_dim: Number of input channels.
-            out_dim: Number of output channels.
-            filter_size: Size of convolutional kernel.
-            stride: Stride of convolution.
-            padding: Padding size.
+        self.logvar = nn.Sequential(nn.Linear(inplanes * 4 * 4 * 4, latent_dim))
 
-        Returns:
-            A sequential container of transpose convolutional block layers.
-        """
-        return nn.Sequential(
-            nn.ConvTranspose2d(
-                in_dim, out_dim, filter_size, stride=stride, padding=padding
-            ),
-            nn.InstanceNorm2d(out_dim),
-            nn.LeakyReLU(0.02),
-        )
+        self.linear2 = nn.Sequential(nn.Linear(latent_dim, inplanes * 4 * 4 * 4))
 
-    def _create_network(self, inplanes: int, latent_dim: int) -> None:
-        """Create the encoder and decoder networks.
-
-        Args:
-            inplanes: Base number of convolutional filters.
-            latent_dim: Dimension of the latent space.
-        """
-        # Calculate the size of flattened features after encoder
-        flat_features = inplanes * 4 * 4 * 4
-
-        # Create encoder
-        self.encoder = self._create_encoder(inplanes)
-
-        # Create latent space projections
-        self.mu = nn.Linear(flat_features, latent_dim)
-        self.logvar = nn.Linear(flat_features, latent_dim)
-        self.linear2 = nn.Linear(latent_dim, flat_features)
-
-        # Create decoder
-        self.decoder = self._create_decoder(inplanes)
-
-    def _create_encoder(self, inplanes: int) -> nn.Sequential:
-        """Create the encoder network."""
-        return nn.Sequential(
-            self._create_conv_block(1, inplanes),
-            self._create_conv_block(inplanes, inplanes),
-            nn.MaxPool2d(2, 2),  # size = [batch,inplanes,image_size/2,image_size/2]
-            self._create_conv_block(inplanes, inplanes * 2),
-            self._create_conv_block(inplanes * 2, inplanes * 2),
-            nn.MaxPool2d(2, 2),  # size = [batch,inplanes*2,image_size/4,image_size/4]
-            self._create_conv_block(inplanes * 2, inplanes * 4),
-            self._create_conv_block(inplanes * 4, inplanes * 4),
-            nn.MaxPool2d(2, 2),  # size = [batch,inplanes*4,image_size/8,image_size/8]
-            self._create_conv_block(inplanes * 4, inplanes * 4),
-            self._create_conv_block(inplanes * 4, inplanes * 4),
-            nn.MaxPool2d(2, 2),  # size = [batch,inplanes*4,image_size/16,image_size/16]
-            self._create_conv_block(inplanes * 4, inplanes * 4),
-            self._create_conv_block(inplanes * 4, inplanes * 4),
-            nn.MaxPool2d(2, 2),  # size = [batch,inplanes*4,image_size/32,image_size/32]
-        )
-
-    def _create_decoder(self, inplanes: int) -> nn.Sequential:
-        """Create the decoder network."""
-        return nn.Sequential(
+        self.decoder = nn.Sequential(
             nn.UpsamplingNearest2d(scale_factor=2),
-            self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
-            self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
+            building_blocks_trans(inplanes * 4, inplanes * 4, 3, 1, 1),
+            building_blocks_trans(inplanes * 4, inplanes * 4, 3, 1, 1),
             nn.UpsamplingNearest2d(scale_factor=2),
-            self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
-            self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
+            building_blocks_trans(inplanes * 4, inplanes * 4, 3, 1, 1),
+            building_blocks_trans(inplanes * 4, inplanes * 4, 3, 1, 1),
             nn.UpsamplingNearest2d(scale_factor=2),
-            self._create_transpose_conv_block(inplanes * 4, inplanes * 4),
-            self._create_transpose_conv_block(inplanes * 4, inplanes * 2),
+            building_blocks_trans(inplanes * 4, inplanes * 4, 3, 1, 1),
+            building_blocks_trans(inplanes * 4, inplanes * 2, 3, 1, 1),
             nn.UpsamplingNearest2d(scale_factor=2),
-            self._create_transpose_conv_block(inplanes * 2, inplanes * 2),
-            self._create_transpose_conv_block(inplanes * 2, inplanes),
+            building_blocks_trans(inplanes * 2, inplanes * 2, 3, 1, 1),
+            building_blocks_trans(inplanes * 2, inplanes, 3, 1, 1),
             nn.UpsamplingNearest2d(scale_factor=2),
-            self._create_transpose_conv_block(inplanes, inplanes),
-            nn.Conv2d(inplanes, 1, 3, 1, 1),
-            # nn.Sigmoid()  # Uncomment if needed for your specific use case
+            building_blocks_trans(inplanes, inplanes, 3, 1, 1),
+            nn.Conv2d(32, 1, 3, 1, 1),
+            # nn.Sigmoid()
         )

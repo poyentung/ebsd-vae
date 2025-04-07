@@ -123,7 +123,8 @@ class LatentVectorDatabase:
             logger.info(f"Retrieved existing collection '{self.collection_name}'")
         except (ValueError, chromadb.errors.InvalidCollectionException):
             self.collection = self.client.create_collection(
-                name=self.collection_name, metadata={"dimension": self.dimension}
+                name=self.collection_name,
+                metadata={"dimension": self.dimension, "hnsw:space": "cosine"},
             )
             logger.info(f"Created new collection '{self.collection_name}'")
 
