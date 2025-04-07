@@ -14,12 +14,6 @@ from src.model import VariationalAutoEncoder
 
 logger = logging.getLogger(__name__)
 
-VAE_MODEL_PATH = Path("trained_models/checkpoints/vae_final.pth")
-SAMPLE_PATTERN_PATH = Path("data/sample_pattern.npy")
-SAMPLE_ANGFILE_PATH = Path("data/anglefile_sample.txt")
-DICTIONARY_LATENT_PATH = Path("data/dic_latent.npy")
-DICTIONARY_ANGLES_PATH = Path("data/dic_ang.npy")
-
 
 @dataclass
 class IndexerConfig:
