@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from scipy.spatial.transform import Rotation as R
 
 from src.index.chroma_db import (
     LatentVectorDatabase,

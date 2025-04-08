@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from typing import Generator
 from unittest.mock import MagicMock, patch, ANY, PropertyMock
 
 import numpy as np
@@ -74,7 +75,7 @@ def test_patterns() -> tuple[torch.Tensor, NDArray[np.float64]]:
 
 
 @pytest.fixture
-def test_config() -> IndexerConfig:
+def test_config() -> Generator[IndexerConfig, None, None]:
     """Create a test configuration."""
     with tempfile.TemporaryDirectory() as tmpdir:
         pattern_path = Path(tmpdir) / "patterns.npy"
@@ -104,7 +105,7 @@ class TestDiffractionPatternIndexer:
     def test_init(self, mock_model, mock_db, test_config):
         """Test initializing the indexer."""
         # We need to mock build_dictionary to avoid file operations
-        with patch.object(DiffractionPatternIndexer, "build_dictionary") as mock_build:
+        with patch.object(DiffractionPatternIndexer, "build_dictionary"):
             indexer = DiffractionPatternIndexer(mock_model, mock_db, test_config)
 
             # Check properties were set correctly
@@ -227,7 +228,7 @@ class TestDiffractionPatternIndexer:
             indexer = DiffractionPatternIndexer(mock_model, mock_db, test_config)
 
             # Test with default parameters
-            result = indexer.index_pattern(single_pattern)
+            _ = indexer.index_pattern(single_pattern)
             mock_db.find_best_orientation.assert_called_with(
                 ANY,
                 top_n=test_config.top_n,
@@ -235,7 +236,7 @@ class TestDiffractionPatternIndexer:
             )
 
             # Test with custom parameters
-            result = indexer.index_pattern(
+            _ = indexer.index_pattern(
                 single_pattern, top_n=10, orientation_threshold=1.5
             )
             mock_db.find_best_orientation.assert_called_with(
@@ -259,11 +260,11 @@ class TestDiffractionPatternIndexer:
             indexer = DiffractionPatternIndexer(mock_model, mock_db, test_config)
 
             # Test batch indexing
-            result = indexer.index_patterns_batch(torch_patterns)
+            _ = indexer.index_patterns_batch(torch_patterns)
             mock_db.find_best_orientations_batch.assert_called_once()
 
             # Test with custom kwargs
-            result = indexer.index_patterns_batch(
+            _ = indexer.index_patterns_batch(
                 torch_patterns, top_n=10, orientation_threshold=1.5
             )
             mock_db.find_best_orientations_batch.assert_called_with(
