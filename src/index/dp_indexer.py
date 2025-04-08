@@ -166,6 +166,7 @@ class DiffractionPatternIndexer:
                 for i in range(batch_size):
                     transformed.append(transform(patterns[i]))
                 patterns = torch.stack(transformed)
+                patterns = patterns.unsqueeze(1)
         else:
             if patterns.dim() == 2:
                 patterns = patterns.unsqueeze(0).unsqueeze(0)
