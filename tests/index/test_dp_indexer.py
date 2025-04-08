@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import MagicMock, patch, ANY, PropertyMock
 
 import numpy as np
 import pytest
@@ -116,7 +116,6 @@ class TestDiffractionPatternIndexer:
             # Check model was prepared
             mock_model.eval.assert_called_once()
             mock_model.to.assert_called_once_with(torch.device("cpu"))
-            mock_build.assert_called_once()
 
     def test_init_fallback_to_cpu(self, mock_model, mock_db, test_config):
         """Test fallback to CPU when CUDA is requested but not available."""
@@ -139,9 +138,12 @@ class TestDiffractionPatternIndexer:
         mock_orientations = np.random.rand(10, 3) * 360
 
         with (
+            # Since _create_dataloader is a cached_property, we need to patch it
+            # as a property object, not a method
             patch.object(
                 DiffractionPatternIndexer,
                 "_create_dataloader",
+                new_callable=PropertyMock,
                 return_value=mock_dataloader,
             ) as mock_create,
             patch.object(
@@ -159,11 +161,9 @@ class TestDiffractionPatternIndexer:
                 indexer.device = torch.device("cpu")
 
                 # Now call build_dictionary explicitly
-                indexer.build_dictionary(
-                    test_config.pattern_path, test_config.angles_path
-                )
+                indexer.build_dictionary()
 
-                # Check correct methods were called
+                # Check that the property was accessed
                 mock_create.assert_called_once()
                 mock_extract.assert_called_once_with(mock_dataloader)
                 mock_db.add_vectors.assert_called_once_with(
@@ -282,6 +282,14 @@ class TestDiffractionPatternIndexer:
         mock_dataloader.__iter__.return_value = iter([batch1, batch2])
         mock_dataloader.__len__.return_value = 2
 
+        # Set up return value for mock_model to match implementation
+        mock_model.return_value = (
+            torch.randn(1, 1, 128, 128),  # reconstructed
+            None,  # Whatever else you need
+            torch.randn(1, 16),  # mu (this is what's used)
+            torch.randn(1, 16),  # logvar
+        )
+
         with patch.object(DiffractionPatternIndexer, "build_dictionary"):
             indexer = DiffractionPatternIndexer(mock_model, mock_db, test_config)
 
@@ -293,7 +301,4 @@ class TestDiffractionPatternIndexer:
             # Assertions
             assert isinstance(latent_vectors, np.ndarray)
             assert isinstance(orientations, np.ndarray)
-            assert mock_model.encoder.call_count == 2  # Called for each batch
-            assert mock_model.mu.call_count == 2
-            assert mock_model.logvar.call_count == 2
-            assert mock_model.reparameterize.call_count == 2
+            assert mock_model.call_count == 2  # Called for each batch

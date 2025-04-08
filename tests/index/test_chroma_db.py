@@ -165,7 +165,8 @@ class TestLatentVectorDatabase:
 
             mock_client.get_collection.assert_called_once()
             mock_client.create_collection.assert_called_once_with(
-                name="latent_vectors", metadata={"dimension": 16}
+                name="latent_vectors",
+                metadata={"dimension": 16, "hnsw:space": "cosine"},
             )
 
     def test_validate_vectors_valid(
