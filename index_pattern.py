@@ -12,6 +12,7 @@ from src.data_module import DPDataModule
 from src.model import VariationalAutoEncoderRawData
 from src.lightning_module import VAELightningModule
 from src.utils.constants import CUBIC_SYMMETRY
+from src.utils.utils import get_device
 
 logger = logging.getLogger(__name__)
 
@@ -120,11 +121,7 @@ class DiffractionPatternIndexer:
         torch.manual_seed(self.config.random_seed)
 
         self.model_path = Path(model_path)
-        self.device = (
-            device
-            if device is not None
-            else torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        )
+        self.device = device if device is not None else get_device()
         logger.info(f"Using device: {self.device}")
 
     def generate_latent_vectors(
