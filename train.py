@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 from hydra.utils import instantiate
 from omegaconf import DictConfig
 
-from src.lightning_module import VAELightningModule
+from latice.lightning_module import VAELightningModule
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

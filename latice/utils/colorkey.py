@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 from math import acos, atan2, sqrt
 
-from src.utils.constants import (
+from latice.utils.constants import (
     QUAT_SYM,
     PI_OVER_180,
     K_180_OVER_PI,

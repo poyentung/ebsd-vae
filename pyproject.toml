@@ -1,7 +1,6 @@
 [project]
-name = "ebsd-vae"
+name = "latice"
 version = "0.1.0"
-description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -25,43 +24,11 @@ dependencies = [
     "wandb>=0.19.8",
 ]
 
-[tool.pytest.ini_options]
-pythonpath = [".", "src"]
+[tool.setuptools.packages.find]
+include = ["latice*"]
+
 
 [tool.ruff]
-# lint.extend-select = ["ALL"]
-# lint.ignore = [
-#     "A005", # shadowing stlib module names
-#     "B905", # zip without explicit strict=
-#     "D205", # Docstrings formatting
-#     "PT023", # pytest marks
-#     "S101", # Assertion errors
-#     "S604", # usage of a parameter called 'shell'
-#     "TC002", # false alarms on TYPE_CHECKING imports
-#     "TC001",
-#     "E501", # line too long
-#     "ISC001", # Recommended disable single-line-implicit-string-concatenation
-#     "RET501", # unnecessary-return-none
-#     "TRY003", # raise-vanilla-args, TODO: un-ignore this
-#     "TRY301", # raise-within-try, TODO: un-ignore this
-#     "N818", # error-suffix-on-exception-name
-#     "ANN401", # TODO, un-ignore this
-#     "PLR0911", # Complexity rules, better handled by C901
-#     "PLR0912",
-#     "PLR0913",
-#     "PLR0915",
-#     "PLR1711", # useless-return
-#     "S603", # subprocess call
-#     "TD003", # missing-todo-link, TODO: (ironic) un-ignore this
-#     "EM", # flake8-errmsg, TODO(Robert Forrest): un-ignore this
-#     "BLE", # flake8-blind-except, TODO(Robert Forrest): un-ignore this
-#     "SLF", # flake8-self
-#     "ARG", # flake8-unused-arguments
-#     "PD", # pandas-vet, TODO(Robert Forrest): un-ignore this
-#     "FBT", # flake8-boolean-trap, TODO(Robert Forrest): un-ignore this
-#     "FIX", # flake8-fixme
-#     "COM812" # Recommended disable missing-trailing-comma
-# ]
 lint.pydocstyle.convention = "google"
 lint.per-file-ignores = { "tests/*" = ["D", "INP", "PLR2004"], "**/scripts/*" = ["INP"] }
 lint.isort.split-on-trailing-comma = false

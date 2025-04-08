@@ -10,8 +10,8 @@ import pytest
 import torch
 from numpy.typing import NDArray
 
-from src.index.chroma_db import LatentVectorDatabase, OrientationResult
-from src.index.dp_indexer import DiffractionPatternIndexer, IndexerConfig
+from latice.index.chroma_db import LatentVectorDatabase, OrientationResult
+from latice.index.dp_indexer import DiffractionPatternIndexer, IndexerConfig
 
 
 @pytest.fixture
@@ -185,7 +185,7 @@ class TestDiffractionPatternIndexer:
 
             # Test with numpy array
             with patch(
-                "src.index.dp_indexer.create_default_transform",
+                "latice.index.dp_indexer.create_default_transform",
                 return_value=lambda x: torch.tensor(x),
             ):
                 result_np = indexer.encode_pattern(numpy_patterns[0])
@@ -206,7 +206,7 @@ class TestDiffractionPatternIndexer:
 
             # Test with numpy array
             with patch(
-                "src.index.dp_indexer.create_default_transform",
+                "latice.index.dp_indexer.create_default_transform",
                 return_value=lambda x: torch.tensor(x),
             ):
                 result_np = indexer.encode_patterns_batch(numpy_patterns)

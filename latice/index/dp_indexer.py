@@ -16,9 +16,9 @@ from rich.progress import (
     TextColumn,
 )
 
-from src.data_module import DPDataModule, create_default_transform
-from src.index.chroma_db import LatentVectorDatabase, OrientationResult
-from src.model import VariationalAutoEncoder
+from latice.data_module import DPDataModule, create_default_transform
+from latice.index.chroma_db import LatentVectorDatabase, OrientationResult
+from latice.model import VariationalAutoEncoder
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 from PIL import Image
 
 from scipy.spatial.transform import Rotation as R
-from src.utils.colorkey import ColorKeyGenerator
+from latice.utils.colorkey import ColorKeyGenerator
 
 # Constants
 PI_OVER_180 = pi / 180

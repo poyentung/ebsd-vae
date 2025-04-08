@@ -1,9 +1,9 @@
-_target_: src.lightning_module.VAELightningModule
+_target_: latice.lightning_module.VAELightningModule
 
 kl_lambda: 5e-6
 
 model:
-  _target_: src.model.VariationalAutoEncoderRawData
+  _target_: latice.model.VariationalAutoEncoderRawData
   inplanes: 32
   latent_dim: 16
 

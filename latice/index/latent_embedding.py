@@ -8,9 +8,9 @@ from numpy.typing import NDArray
 import torch
 from torch.utils.data import Dataset
 
-from src.data_module import DPDataModule
-from src.index.chroma_db import LatentVectorDatabase, LatentVectorDatabaseConfig
-from src.model import VariationalAutoEncoder
+from latice.data_module import DPDataModule
+from latice.index.chroma_db import LatentVectorDatabase, LatentVectorDatabaseConfig
+from latice.model import VariationalAutoEncoder
 
 logger = logging.getLogger(__name__)
 

@@ -68,9 +68,9 @@ uv run python train.py --multirun lightning_module.optimizer_partial.lr=1e-4,5e-
 The package includes a [Jupyter notebook](notebook/index.ipynb) that demonstrates how to use the LATICE system for indexing electron backscatter diffraction (EBSD) patterns: 
 
 ```python
-from src.index.dp_indexer import DiffractionPatternIndexer, IndexerConfig
-from src.index.chroma_db import LatentVectorDatabaseConfig, LatentVectorDatabase
-from src.model import VariationalAutoEncoderRawData
+from latice.index.dp_indexer import DiffractionPatternIndexer, IndexerConfig
+from latice.index.chroma_db import LatentVectorDatabaseConfig, LatentVectorDatabase
+from latice.model import VariationalAutoEncoderRawData
 import torch
 from pathlib import Path
 

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from src.index.chroma_db import (
+from latice.index.chroma_db import (
     LatentVectorDatabase,
     LatentVectorDatabaseConfig,
     OrientationResult,

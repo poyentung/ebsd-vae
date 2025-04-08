@@ -15,7 +15,7 @@ from rich.progress import (
 )
 from scipy.spatial.transform import Rotation as R
 
-from src.utils.utils import QUAT_SYM
+from latice.utils.utils import QUAT_SYM
 
 
 logger = logging.getLogger(__name__)

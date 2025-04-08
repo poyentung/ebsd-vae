@@ -1,4 +1,4 @@
-_target_: src.data_module.DPDataModule
+_target_: latice.data_module.DPDataModule
 
 path: ${data_dir}/N=100_noised.npy
 rot_angles_path: ${data_dir}/anglefile_N=100.txt
