@@ -207,7 +207,7 @@ class TestDiffractionPatternIndexer:
             # Test with numpy array
             with patch(
                 "latice.index.dp_indexer.create_default_transform",
-                return_value=lambda x: torch.tensor(x),
+                return_value=lambda x: torch.tensor(x).unsqueeze(1),
             ):
                 result_np = indexer.encode_patterns_batch(numpy_patterns)
                 assert isinstance(result_np, np.ndarray)
