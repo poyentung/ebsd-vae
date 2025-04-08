@@ -162,11 +162,9 @@ class DiffractionPatternIndexer:
             elif patterns.ndim == 3:
                 # Transform each image separately
                 batch_size = patterns.shape[0]
-                transformed = []
-                for i in range(batch_size):
-                    transformed.append(transform(patterns[i]))
+                transformed = [transform(patterns[i]) for i in range(batch_size)]
                 patterns = torch.stack(transformed)
-                patterns = patterns.unsqueeze(1)
+                # patterns = patterns.unsqueeze(1)
         else:
             if patterns.dim() == 2:
                 patterns = patterns.unsqueeze(0).unsqueeze(0)

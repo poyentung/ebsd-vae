@@ -8,11 +8,11 @@ from numpy.typing import NDArray
 import torch
 from torch.utils.data import Dataset, DataLoader
 from scipy.spatial.transform import Rotation as R
-from src.data_module import DPDataModule
-from src.model import VariationalAutoEncoderRawData
-from src.lightning_module import VAELightningModule
-from src.utils.constants import CUBIC_SYMMETRY
-from src.utils.utils import get_device
+from latice.data_module import DPDataModule
+from latice.model import VariationalAutoEncoderRawData
+from latice.lightning_module import VAELightningModule
+from latice.utils.constants import CUBIC_SYMMETRY
+from latice.utils.utils import get_device
 
 logger = logging.getLogger(__name__)
 
