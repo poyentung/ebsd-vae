@@ -6,8 +6,8 @@
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/ebsd-vae.git
-   cd ebsd-vae
+   git clone https://github.com/yourusername/latice.git
+   cd latice
    ```
 
 2. Create and activate a virtual environment (optional but recommended):
@@ -24,7 +24,7 @@
 
 3. Install the required dependencies:
    ```bash
-   uv pip install -e .
+   uv pip install .
    ```
 
 ## Running Tests
