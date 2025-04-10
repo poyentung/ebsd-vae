@@ -15,6 +15,7 @@ dependencies = [
     "jupyter>=1.1.1",
     "lightning>=2.5.0.post0",
     "matplotlib>=3.10.1",
+    "mypy>=1.15.0",
     "notebook>=7.3.3",
     "numpy>=2.2.4",
     "pandas>=2.2.3",
