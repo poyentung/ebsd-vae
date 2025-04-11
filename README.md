@@ -1,6 +1,9 @@
-# LATICE: Latent-space Autoencoder for Template Indexing of Crystallographic EBSD
+<h1 align="center"> <code>latice</code> Latent-space Autoencoder for Template Indexing of 
+Crystallographic EBSD </h1>
 
-
+<p align="center">
+    <img src="assets/latice_logo.png" alt="Latice logo" width="600"/>
+</p>
 
 ## Installation
 
