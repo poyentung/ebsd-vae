@@ -145,7 +145,7 @@ class VAELoss:
         # KL divergence
         kl = self.kl_divergence(z, mu, std) * self.kl_lambda
 
-        # ELBO (Evidence Lower BOund)
+        # ELBO (Evidence Lower Bound)
         elbo = kl + recon_loss
 
         return {
@@ -161,14 +161,6 @@ class VAELightningModule(pl.LightningModule):
 
     Implements training, validation, and inference procedures for a VAE model.
     Handles optimization, loss calculation, and logging.
-
-    Attributes:
-        model: The underlying VAE architecture.
-        log_scale: Parameter for Gaussian likelihood estimation.
-        optimizer_partial: Factory function for creating the optimizer.
-        lr_scheduler_partial: Factory function for creating the learning rate scheduler.
-        kl_lambda: Weight for the KL divergence term in the loss function.
-        latent: Storage for latent representations during inference.
     """
 
     def __init__(
@@ -200,6 +192,10 @@ class VAELightningModule(pl.LightningModule):
 
         # Set random seed for reproducibility
         self._set_random_seeds()
+
+        # Initialize validation and training step outputs
+        self.validation_step_outputs = []
+        self.training_step_outputs = []  # This was missing
 
     def _set_random_seeds(self, seed: int = 42) -> None:
         """Set random seeds for reproducibility.
@@ -263,72 +259,62 @@ class VAELightningModule(pl.LightningModule):
         """
         metrics = self._get_step_outputs(train_batch, prefix="train_")
 
+        # Store the output of this training step in self.training_step_outputs
+        self.training_step_outputs.append(metrics)  # Save metrics from each batch
+
         # Log metrics
         self.log("elbo", metrics["train_loss"], prog_bar=True, on_step=True)
         self.log("train_kl_loss", metrics["train_kl_loss"], prog_bar=True, on_step=True)
-        self.log(
-            "train_recon_loss", metrics["train_recon_loss"], prog_bar=True, on_step=True
-        )
+        self.log("train_recon_loss", metrics["train_recon_loss"], prog_bar=True, on_step=True)
 
-        return metrics
+        # Return the loss as required by PyTorch Lightning
+        return {"loss": metrics["train_loss"]}
 
     def on_train_epoch_end(self) -> None:
-        training_step_outputs = self.training_step_outputs
-        epoch_train_loss = torch.stack(
-            [x["loss"] for x in training_step_outputs]
-        ).mean()
-        epoch_train_kl_loss = torch.stack(
-            [x["train_kl_loss"] for x in training_step_outputs]
-        ).mean()
-        epoch_train_recon_loss = torch.stack(
-            [x["train_recon_loss"] for x in training_step_outputs]
-        ).mean()
+        """Called at the end of every training epoch."""
+        # Aggregate the training step outputs (assuming you want to average them)
+        epoch_train_loss = torch.stack([x["train_loss"] for x in self.training_step_outputs]).mean()
+        epoch_train_kl_loss = torch.stack([x["train_kl_loss"] for x in self.training_step_outputs]).mean()
+        epoch_train_recon_loss = torch.stack([x["train_recon_loss"] for x in self.training_step_outputs]).mean()
 
+        # Log the averaged epoch losses
         self.log("Epoch_train_loss", epoch_train_loss)
         self.log("Epoch_train_kl_loss", epoch_train_kl_loss)
         self.log("Epoch_train_recon_loss", epoch_train_recon_loss)
 
+        # Reset the list of step outputs for the next epoch
+        self.training_step_outputs = []  # Clear the outputs for the next epoch
+
     def validation_step(
         self, val_batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> STEP_OUTPUT:
-        """Execute a single validation step.
-
-        Args:
-            val_batch: Batch of validation data (x, y).
-            batch_idx: Index of the current batch.
-
-        Returns:
-            Dictionary of metrics and tensors for visualization.
-        """
+        """Execute a single validation step."""
         metrics = self._get_step_outputs(val_batch, prefix="val_")
+
+        # Store the output of this validation step in self.validation_step_outputs
+        self.validation_step_outputs.append(metrics)  # Save metrics from each batch
 
         # Log metrics
         self.log("val_loss", metrics["val_loss"], prog_bar=True, on_step=True)
         self.log("val_kl_loss", metrics["val_kl_loss"], prog_bar=True, on_step=True)
-        self.log(
-            "val_recon_loss", metrics["val_recon_loss"], prog_bar=True, on_step=True
-        )
+        self.log("val_recon_loss", metrics["val_recon_loss"], prog_bar=True, on_step=True)
 
         return metrics
 
     def on_validation_epoch_end(self) -> None:
-        valid_step_outputs = self.validation_step_outputs
+        """Compute the average validation loss over the entire epoch."""
+        valid_step_outputs = self.validation_step_outputs  # Now this list is properly populated
         epoch_val_loss = torch.stack([x["val_loss"] for x in valid_step_outputs]).mean()
-        epoch_val_kl_loss = torch.stack(
-            [x["val_kl_loss"] for x in valid_step_outputs]
-        ).mean()
-        epoch_val_recon_loss = torch.stack(
-            [x["val_recon_loss"] for x in valid_step_outputs]
-        ).mean()
+        epoch_val_kl_loss = torch.stack([x["val_kl_loss"] for x in valid_step_outputs]).mean()
+        epoch_val_recon_loss = torch.stack([x["val_recon_loss"] for x in valid_step_outputs]).mean()
 
         self.log("Epoch_val_loss", epoch_val_loss)
         self.log("Epoch_val_kl_loss", epoch_val_kl_loss)
         self.log("Epoch_val_recon_loss", epoch_val_recon_loss)
 
+        # Example figure logging
         last_batch = (
-            valid_step_outputs[-1]
-            if valid_step_outputs[-1]["x"].size(0) >= 4
-            else valid_step_outputs[-2]
+            valid_step_outputs[-1] if valid_step_outputs[-1]["x"].size(0) >= 4 else valid_step_outputs[-2]
         )
         fig = plot_detection(last_batch["x"], last_batch["x_hat"])
         log_fig(
@@ -337,6 +323,9 @@ class VAELightningModule(pl.LightningModule):
             logger=self.logger,
             current_epoch=self.current_epoch,
         )
+
+        # Reset the validation_step_outputs list for the next epoch
+        self.validation_step_outputs = []
 
     def test_step(
         self, test_batch: tuple[torch.Tensor, torch.Tensor], batch_idx: int
@@ -360,3 +349,4 @@ class VAELightningModule(pl.LightningModule):
             }
         else:
             return optimizer
+
