@@ -97,6 +97,7 @@ def plot_detection(
     """
     imgs = imgs.to("cpu")
     recon_imgs = torch.sigmoid(recon_imgs)
+    recon_imgs = recon_imgs.to(torch.float32)
     recon_imgs = recon_imgs.to("cpu")
 
     img_ids = random.sample(range(imgs.size(0)), num_samples)

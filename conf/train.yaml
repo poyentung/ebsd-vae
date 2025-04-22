@@ -12,5 +12,5 @@ seed: 0
 
 trainer:
   precision: 16-mixed
-  accelerator: cpu
-  devices: auto
+  accelerator: gpu
+  devices: 1
