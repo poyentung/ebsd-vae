@@ -16,8 +16,10 @@ from rich.progress import (
     TextColumn,
 )
 
+from build.lib.latice.index.faiss_db import FaissLatentVectorDatabase
 from latice.data_module import DPDataModule, create_default_transform
 from latice.index.chroma_db import ChromaLatentVectorDatabase, OrientationResult
+from latice.index.latent_vector_db_base import LatentVectorDatabaseBase
 from latice.model import VariationalAutoEncoder
 
 logger = logging.getLogger(__name__)
@@ -59,7 +61,7 @@ class DiffractionPatternIndexer:
     def __init__(
         self,
         model: VariationalAutoEncoder,
-        db: ChromaLatentVectorDatabase | None = None,
+        db: LatentVectorDatabaseBase | None = None,
         config: IndexerConfig | None = None,
     ) -> None:
         """Initialize the indexer with model and database.
@@ -73,7 +75,7 @@ class DiffractionPatternIndexer:
         self.db = (
             db
             if db is not None
-            else ChromaLatentVectorDatabase(dimension=self.config.latent_dim)
+            else FaissLatentVectorDatabase(dimension=self.config.latent_dim)
         )
 
         np.random.seed(self.config.random_seed)
