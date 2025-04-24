@@ -15,6 +15,7 @@ from rich.progress import (
 )
 from scipy.spatial.transform import Rotation as R
 
+from latice.index.latent_vector_db_base import LatentVectorDatabaseBase
 from latice.utils.utils import QUAT_SYM
 
 
@@ -83,13 +84,14 @@ class OrientationResult:
         ]
 
 
-class LatentVectorDatabase:
+class ChromaLatentVectorDatabase(LatentVectorDatabaseBase):
     """Vector database for storing and querying latent vectors and their orientations.
 
     This class provides methods to create, populate, and query a ChromaDB
     collection containing latent vectors and their corresponding orientations.
 
     Attributes:
+        config: Configuration for the database
         collection_name: Name of the ChromaDB collection
         client: ChromaDB client instance
         collection: ChromaDB collection instance
