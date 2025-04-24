@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 
 from latice.index.chroma_db import (
     ChromaLatentVectorDatabase,
-    LatentVectorDatabaseConfig,
+    ChromaLatentVectorDatabaseConfig,
     OrientationResult,
 )
 
@@ -120,7 +120,7 @@ class TestLatentVectorDatabase:
         mock_client, mock_collection = mock_chromadb_client
 
         with patch("chromadb.Client", return_value=mock_client):
-            config = LatentVectorDatabaseConfig(persist_directory=None)
+            config = ChromaLatentVectorDatabaseConfig(persist_directory=None)
             db = ChromaLatentVectorDatabase(config)
             assert db.client == mock_client
             assert db.collection_name == "latent_vectors"
@@ -134,7 +134,7 @@ class TestLatentVectorDatabase:
         mock_client, mock_collection = mock_chromadb_client
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
-            config = LatentVectorDatabaseConfig(persist_directory=temp_db_path)
+            config = ChromaLatentVectorDatabaseConfig(persist_directory=temp_db_path)
             _ = ChromaLatentVectorDatabase(config)
             assert Path(temp_db_path).exists()
 
@@ -145,7 +145,7 @@ class TestLatentVectorDatabase:
         mock_client, mock_collection = mock_chromadb_client
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
-            config = LatentVectorDatabaseConfig(persist_directory=temp_db_path)
+            config = ChromaLatentVectorDatabaseConfig(persist_directory=temp_db_path)
             _ = ChromaLatentVectorDatabase(config)
 
             mock_client.get_collection.assert_called_once()
@@ -159,7 +159,7 @@ class TestLatentVectorDatabase:
         mock_client.get_collection.side_effect = ValueError("Collection not found")
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
-            config = LatentVectorDatabaseConfig(persist_directory=temp_db_path)
+            config = ChromaLatentVectorDatabaseConfig(persist_directory=temp_db_path)
             _ = ChromaLatentVectorDatabase(config)
 
             mock_client.get_collection.assert_called_once()

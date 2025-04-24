@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from latice.data_module import DPDataModule
 from latice.index.chroma_db import (
     ChromaLatentVectorDatabase,
-    LatentVectorDatabaseConfig,
+    ChromaLatentVectorDatabaseConfig,
 )
 from latice.model import VariationalAutoEncoder
 
@@ -45,7 +45,7 @@ class IndexerConfig:
     image_size: Tuple[int, int] = (128, 128)
     inplanes: int = 32
     model: VariationalAutoEncoder
-    db_config: LatentVectorDatabaseConfig = LatentVectorDatabaseConfig()
+    db_config: ChromaLatentVectorDatabaseConfig = ChromaLatentVectorDatabaseConfig()
 
 
 class LatentVectorDataset(Dataset):
