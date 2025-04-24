@@ -24,6 +24,7 @@ from rich.progress import (
 )
 from scipy.spatial.transform import Rotation as R
 
+from latice.index.latent_vector_db_base import LatentVectorDatabaseBase
 from latice.utils.utils import QUAT_SYM
 
 
@@ -88,7 +89,7 @@ class OrientationResult:
         ]
 
 
-class FaissLatentVectorDatabase:
+class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
     """Vector database using FAISS for storing and querying latent vectors.
 
     This class provides methods to create, populate, and query a FAISS
