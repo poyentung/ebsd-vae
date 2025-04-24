@@ -17,7 +17,7 @@ from rich.progress import (
 )
 
 from latice.data_module import DPDataModule, create_default_transform
-from latice.index.chroma_db import LatentVectorDatabase, OrientationResult
+from latice.index.chroma_db import ChromaLatentVectorDatabase, OrientationResult
 from latice.model import VariationalAutoEncoder
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ class DiffractionPatternIndexer:
     def __init__(
         self,
         model: VariationalAutoEncoder,
-        db: LatentVectorDatabase | None = None,
+        db: ChromaLatentVectorDatabase | None = None,
         config: IndexerConfig | None = None,
     ) -> None:
         """Initialize the indexer with model and database.
@@ -73,21 +73,18 @@ class DiffractionPatternIndexer:
         self.db = (
             db
             if db is not None
-            else LatentVectorDatabase(dimension=self.config.latent_dim)
+            else ChromaLatentVectorDatabase(dimension=self.config.latent_dim)
         )
 
-        # Set random seeds for reproducibility
         np.random.seed(self.config.random_seed)
         torch.manual_seed(self.config.random_seed)
 
-        # Set device
         self.device = torch.device(self.config.device)
         if self.config.device == "cuda" and not torch.cuda.is_available():
             logger.warning("CUDA not available, falling back to CPU")
             self.device = torch.device("cpu")
         logger.info(f"Using device: {self.device}")
 
-        # Set model
         self.model = model
         self.model.eval()
         self.model.to(self.device)

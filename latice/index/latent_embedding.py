@@ -9,7 +9,10 @@ import torch
 from torch.utils.data import Dataset
 
 from latice.data_module import DPDataModule
-from latice.index.chroma_db import LatentVectorDatabase, LatentVectorDatabaseConfig
+from latice.index.chroma_db import (
+    ChromaLatentVectorDatabase,
+    LatentVectorDatabaseConfig,
+)
 from latice.model import VariationalAutoEncoder
 
 logger = logging.getLogger(__name__)
@@ -88,7 +91,7 @@ class DiffractionPatternIndexer:
             device: Device to use for computation; if None, uses GPU if available
             config: Configuration parameters (default configuration used if None)
         """
-        self.db = LatentVectorDatabase(config.db_config)
+        self.db = ChromaLatentVectorDatabase(config.db_config)
         self.config = config if config is not None else IndexerConfig()
 
         np.random.seed(self.config.random_seed)
