@@ -265,7 +265,9 @@ class VAELightningModule(pl.LightningModule):
         # Log metrics
         self.log("elbo", metrics["train_loss"], prog_bar=True, on_step=True)
         self.log("train_kl_loss", metrics["train_kl_loss"], prog_bar=True, on_step=True)
-        self.log("train_recon_loss", metrics["train_recon_loss"], prog_bar=True, on_step=True)
+        self.log(
+            "train_recon_loss", metrics["train_recon_loss"], prog_bar=True, on_step=True
+        )
 
         # Return the loss as required by PyTorch Lightning
         return {"loss": metrics["train_loss"]}
@@ -273,9 +275,15 @@ class VAELightningModule(pl.LightningModule):
     def on_train_epoch_end(self) -> None:
         """Called at the end of every training epoch."""
         # Aggregate the training step outputs (assuming you want to average them)
-        epoch_train_loss = torch.stack([x["train_loss"] for x in self.training_step_outputs]).mean()
-        epoch_train_kl_loss = torch.stack([x["train_kl_loss"] for x in self.training_step_outputs]).mean()
-        epoch_train_recon_loss = torch.stack([x["train_recon_loss"] for x in self.training_step_outputs]).mean()
+        epoch_train_loss = torch.stack(
+            [x["train_loss"] for x in self.training_step_outputs]
+        ).mean()
+        epoch_train_kl_loss = torch.stack(
+            [x["train_kl_loss"] for x in self.training_step_outputs]
+        ).mean()
+        epoch_train_recon_loss = torch.stack(
+            [x["train_recon_loss"] for x in self.training_step_outputs]
+        ).mean()
 
         # Log the averaged epoch losses
         self.log("Epoch_train_loss", epoch_train_loss)
@@ -297,16 +305,24 @@ class VAELightningModule(pl.LightningModule):
         # Log metrics
         self.log("val_loss", metrics["val_loss"], prog_bar=True, on_step=True)
         self.log("val_kl_loss", metrics["val_kl_loss"], prog_bar=True, on_step=True)
-        self.log("val_recon_loss", metrics["val_recon_loss"], prog_bar=True, on_step=True)
+        self.log(
+            "val_recon_loss", metrics["val_recon_loss"], prog_bar=True, on_step=True
+        )
 
         return metrics
 
     def on_validation_epoch_end(self) -> None:
         """Compute the average validation loss over the entire epoch."""
-        valid_step_outputs = self.validation_step_outputs  # Now this list is properly populated
+        valid_step_outputs = (
+            self.validation_step_outputs
+        )  # Now this list is properly populated
         epoch_val_loss = torch.stack([x["val_loss"] for x in valid_step_outputs]).mean()
-        epoch_val_kl_loss = torch.stack([x["val_kl_loss"] for x in valid_step_outputs]).mean()
-        epoch_val_recon_loss = torch.stack([x["val_recon_loss"] for x in valid_step_outputs]).mean()
+        epoch_val_kl_loss = torch.stack(
+            [x["val_kl_loss"] for x in valid_step_outputs]
+        ).mean()
+        epoch_val_recon_loss = torch.stack(
+            [x["val_recon_loss"] for x in valid_step_outputs]
+        ).mean()
 
         self.log("Epoch_val_loss", epoch_val_loss)
         self.log("Epoch_val_kl_loss", epoch_val_kl_loss)
@@ -314,7 +330,9 @@ class VAELightningModule(pl.LightningModule):
 
         # Example figure logging
         last_batch = (
-            valid_step_outputs[-1] if valid_step_outputs[-1]["x"].size(0) >= 4 else valid_step_outputs[-2]
+            valid_step_outputs[-1]
+            if valid_step_outputs[-1]["x"].size(0) >= 4
+            else valid_step_outputs[-2]
         )
         fig = plot_detection(last_batch["x"], last_batch["x_hat"])
         log_fig(
@@ -349,4 +367,3 @@ class VAELightningModule(pl.LightningModule):
             }
         else:
             return optimizer
-
