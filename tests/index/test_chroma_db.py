@@ -10,7 +10,7 @@ import pytest
 from numpy.typing import NDArray
 
 from latice.index.chroma_db import (
-    LatentVectorDatabase,
+    ChromaLatentVectorDatabase,
     LatentVectorDatabaseConfig,
     OrientationResult,
 )
@@ -121,7 +121,7 @@ class TestLatentVectorDatabase:
 
         with patch("chromadb.Client", return_value=mock_client):
             config = LatentVectorDatabaseConfig(persist_directory=None)
-            db = LatentVectorDatabase(config)
+            db = ChromaLatentVectorDatabase(config)
             assert db.client == mock_client
             assert db.collection_name == "latent_vectors"
             assert db.dimension == 16
@@ -135,7 +135,7 @@ class TestLatentVectorDatabase:
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
             config = LatentVectorDatabaseConfig(persist_directory=temp_db_path)
-            _ = LatentVectorDatabase(config)
+            _ = ChromaLatentVectorDatabase(config)
             assert Path(temp_db_path).exists()
 
     def test_init_existing_collection(
@@ -146,7 +146,7 @@ class TestLatentVectorDatabase:
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
             config = LatentVectorDatabaseConfig(persist_directory=temp_db_path)
-            _ = LatentVectorDatabase(config)
+            _ = ChromaLatentVectorDatabase(config)
 
             mock_client.get_collection.assert_called_once()
             mock_client.create_collection.assert_not_called()
@@ -160,7 +160,7 @@ class TestLatentVectorDatabase:
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
             config = LatentVectorDatabaseConfig(persist_directory=temp_db_path)
-            _ = LatentVectorDatabase(config)
+            _ = ChromaLatentVectorDatabase(config)
 
             mock_client.get_collection.assert_called_once()
             mock_client.create_collection.assert_called_once_with(
@@ -175,7 +175,7 @@ class TestLatentVectorDatabase:
         latent_vectors, orientations = test_vectors
 
         with patch("chromadb.PersistentClient"):
-            db = LatentVectorDatabase()
+            db = ChromaLatentVectorDatabase()
             # Should not raise any exceptions
             db._validate_vectors(latent_vectors, orientations)
 
@@ -186,7 +186,7 @@ class TestLatentVectorDatabase:
         latent_vectors, orientations = test_vectors
 
         with patch("chromadb.PersistentClient"):
-            db = LatentVectorDatabase()
+            db = ChromaLatentVectorDatabase()
 
             with pytest.raises(
                 ValueError, match="Number of latent vectors and orientations must match"
@@ -201,7 +201,7 @@ class TestLatentVectorDatabase:
         wrong_dim_vectors = np.random.rand(5, 8).astype(np.float64)  # 8 instead of 16
 
         with patch("chromadb.PersistentClient"):
-            db = LatentVectorDatabase()
+            db = ChromaLatentVectorDatabase()
 
             with pytest.raises(
                 ValueError, match="Expected latent vectors of dimension"
@@ -221,7 +221,7 @@ class TestLatentVectorDatabase:
         mock_collection.count.return_value = 0
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
-            db = LatentVectorDatabase()
+            db = ChromaLatentVectorDatabase()
             db.add_vectors(latent_vectors, orientations, batch_size=2)
 
             # Should call add 3 times: 2 batches of 2 and 1 batch of 1
@@ -254,7 +254,7 @@ class TestLatentVectorDatabase:
         np.save(angles_path, orientations)
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
-            db = LatentVectorDatabase()
+            db = ChromaLatentVectorDatabase()
             db.create_from_files(latent_path, angles_path, batch_size=10)
 
             # Should call add once with all 5 vectors
@@ -283,7 +283,7 @@ class TestLatentVectorDatabase:
         mock_collection.query.return_value = mock_results
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
-            db = LatentVectorDatabase()
+            db = ChromaLatentVectorDatabase()
             query_vector = latent_vectors[0]
             results = db.query_similar(query_vector, n_results=2)
 
@@ -297,7 +297,7 @@ class TestLatentVectorDatabase:
         mock_client, _ = mock_chromadb_client
 
         with patch("chromadb.PersistentClient", return_value=mock_client):
-            db = LatentVectorDatabase()
+            db = ChromaLatentVectorDatabase()
             wrong_dim_vector = np.random.rand(8).astype(np.float64)  # 8 instead of 16
 
             with pytest.raises(ValueError, match="Expected query vector of dimension"):
@@ -340,10 +340,10 @@ class TestLatentVectorDatabase:
         with (
             patch("chromadb.PersistentClient", return_value=mock_client),
             patch.object(
-                LatentVectorDatabase, "query_similar", return_value=query_results
+                ChromaLatentVectorDatabase, "query_similar", return_value=query_results
             ),
         ):
-            db = LatentVectorDatabase()
+            db = ChromaLatentVectorDatabase()
 
             # Call with a small threshold that should still find the similar orientations
             # but exclude the outlier
@@ -396,10 +396,12 @@ class TestLatentVectorDatabase:
         with (
             patch("chromadb.PersistentClient", return_value=mock_client),
             patch.object(
-                LatentVectorDatabase, "find_best_orientation", return_value=mock_result
+                ChromaLatentVectorDatabase,
+                "find_best_orientation",
+                return_value=mock_result,
             ),
         ):
-            db = LatentVectorDatabase()
+            db = ChromaLatentVectorDatabase()
 
             # Test with 3 vectors and batch_size=2
             results = db.find_best_orientations_batch(latent_vectors[:3], batch_size=2)

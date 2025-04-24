@@ -10,7 +10,7 @@ import pytest
 import torch
 from numpy.typing import NDArray
 
-from latice.index.chroma_db import LatentVectorDatabase, OrientationResult
+from latice.index.chroma_db import ChromaLatentVectorDatabase, OrientationResult
 from latice.index.dp_indexer import DiffractionPatternIndexer, IndexerConfig
 
 
@@ -46,7 +46,7 @@ def mock_model() -> MagicMock:
 @pytest.fixture
 def mock_db() -> MagicMock:
     """Create a mock LatentVectorDatabase for testing."""
-    mock_db = MagicMock(spec=LatentVectorDatabase)
+    mock_db = MagicMock(spec=ChromaLatentVectorDatabase)
 
     # Set up find_best_orientation to return predictable results
     mock_result = OrientationResult(
