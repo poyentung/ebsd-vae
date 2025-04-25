@@ -24,7 +24,10 @@ from rich.progress import (
 )
 from scipy.spatial.transform import Rotation as R
 
-from latice.index.latent_vector_db_base import LatentVectorDatabaseBase
+from latice.index.latent_vector_db_base import (
+    LatentVectorDatabaseBase,
+    OrientationResult,
+)
 from latice.utils.utils import QUAT_SYM
 
 
@@ -33,60 +36,10 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FaissLatentVectorDatabaseConfig:
-    """Configuration for FaissLatentVectorDatabase.
-
-    Attributes:
-        npz_path: Path to save/load the FAISS index and metadata as a single .npz file.
-        dimension: Dimension of the latent vectors.
-        Only Flat (exact, brute-force) cosine similarity search is supported.
-    """
+    """Configuration for FaissLatentVectorDatabase."""
 
     npz_path: str = "faiss_index.npz"
     dimension: int = 16
-
-
-@dataclass
-class OrientationResult:
-    """Results from orientation matching query.
-
-    Identical to the one in chroma_db.py for consistency.
-
-    Attributes:
-        query_vector: Original latent vector used for the query.
-        best_orientation: Best matched orientation in ZXZ Euler angles (degrees).
-        candidate_orientations: All top candidate orientations from similarity search.
-        distances: Distance metrics for each candidate orientation.
-        success: Whether a valid orientation match was found.
-        similar_indices: Indices of orientations within the similarity threshold.
-    """
-
-    query_vector: NDArray[np.float64]
-    best_orientation: NDArray[np.float64]
-    candidate_orientations: NDArray[np.float64]
-    distances: NDArray[np.float64]
-    mean_orientation: NDArray[np.float64] | None = None
-    success: bool = True
-    similar_indices: NDArray[np.int64] | None = None
-
-    def get_top_n_orientations(self, n: int = 5) -> NDArray[np.float64]:
-        """Return the top N orientations sorted by similarity.
-
-        Args:
-            n: Number of top orientations to return.
-
-        Returns:
-            Array of top N orientations in ZXZ Euler angles (degrees).
-        """
-        if self.distances is None or len(self.distances) == 0:
-            return self.candidate_orientations[
-                : min(n, len(self.candidate_orientations))
-            ]
-
-        # Sort orientations by distance (assuming lower distance is better)
-        sorted_indices = np.argsort(self.distances)
-        return self.candidate_orientations[
-            sorted_indices[: min(n, len(sorted_indices))]
-        ]
 
 
 class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
@@ -94,30 +47,20 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
 
     This class provides methods to create, populate, and query a FAISS
     index containing latent vectors, managing associated orientations separately.
-
-    Attributes:
-        config: Configuration for the database.
-        index: The FAISS index instance.
-        orientations: A list storing orientations corresponding to index entries.
-        dimension: Dimension of the latent vectors.
-        npz_path: Path to the FAISS index and metadata file.
     """
 
     _orientations: list[NDArray[np.float64]] = field(default_factory=list)
     QUAT_SYM: ClassVar[R] = QUAT_SYM
 
-    def _l2_normalize(self, vectors: np.ndarray) -> np.ndarray:
+    def _l2_normalize(self, vectors: NDArray[np.float32]) -> NDArray[np.float32]:
         """L2-normalize a batch of vectors along axis 1 (row-wise)."""
         norms = np.linalg.norm(vectors, axis=1, keepdims=True)
         norms[norms == 0] = 1.0
         return vectors / norms
 
     def __init__(self, config: FaissLatentVectorDatabaseConfig | None = None) -> None:
-        """Initialize the FAISS latent vector database.
+        """Initialise the FAISS latent vector database."""
 
-        Args:
-            config: Configuration for the database. Loads existing index if paths exist.
-        """
         self.config = (
             config if config is not None else FaissLatentVectorDatabaseConfig()
         )
@@ -206,6 +149,12 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
 
         logger.info(f"Loading latent vectors from {latent_file_path}")
         latent_vectors = np.load(latent_file_path).astype(np.float32)
+        if latent_vectors.ndim > 2:
+            logger.warning(
+                f"Latent vectors have unexpected shape: {latent_vectors.shape}. "
+                "Flattening to (n, d) where n is the number of samples and d is the dimension."
+            )
+            latent_vectors = latent_vectors.reshape(latent_vectors.shape[0], -1)
 
         logger.info(f"Loading orientations from {angles_file_path}")
         orientations = np.load(angles_file_path)
@@ -260,7 +209,7 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
         query_vector: NDArray[np.float64] | NDArray[np.float32],
         top_n: int = 20,
         orientation_threshold: float = 1.0,
-        min_required_matches: int = 18,
+        min_required_matches: int = 1,
         max_iterations: int = 3,
     ) -> OrientationResult:
         """Find the best matching orientation for a query vector using FAISS results.
@@ -465,11 +414,26 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             raise FileNotFoundError("NPZ file missing.")
 
         data = np.load(str(npz_path), allow_pickle=True)
-        index_bytes = (
-            data["faiss_index"].item()
-            if hasattr(data["faiss_index"], "item")
-            else data["faiss_index"]
-        )
+        raw_index_data = data["faiss_index"]
+
+        if isinstance(raw_index_data, np.ndarray) and raw_index_data.size == 1:
+            index_bytes = raw_index_data.item()
+        elif isinstance(raw_index_data, bytes):
+            index_bytes = raw_index_data
+        else:
+            logger.error(
+                f"Unexpected type for faiss_index data: {type(raw_index_data)}"
+            )
+            raise TypeError(
+                "Loaded faiss_index is not in expected format (bytes or ndarray with bytes)."
+            )
+
+        if not isinstance(index_bytes, bytes):
+            logger.error(
+                f"Deserialization error: Expected bytes but got {type(index_bytes)}"
+            )
+            raise TypeError("Could not extract bytes for faiss index deserialization.")
+
         self.index = faiss.deserialize_index(index_bytes)
         self.dimension = self.index.d
         self._orientations = data["orientations"].tolist()
