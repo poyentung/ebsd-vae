@@ -336,58 +336,75 @@ class ChromaLatentVectorDatabase(LatentVectorDatabaseBase):
         Returns:
             OrientationResult object containing best fit orientation and related data
         """
+        min_required_matches = min(min_required_matches, top_n)
         results = self.query_similar(query_vector, n_results=top_n)
-
-        # Reconstruct orientations from metadata components
         orientations = np.array(
             [
                 [metadata["phi1"], metadata["Phi"], metadata["phi2"]]
                 for metadata in results["metadatas"][0]
             ]
         )
-
-        # Extract distances
         distances = (
             np.array(results["distances"][0]) if "distances" in results else None
         )
-
         rotations = R.from_euler("zxz", orientations, degrees=True)
 
         success = False
         best_orientation = orientations[0]
         similar_indices = None
+        mean_orientation = None
 
-        for iteration in range(max_iterations):
-            ref_rotation = R.from_euler("zxz", orientations[iteration], degrees=True)
-            similar_orientations = []
+        # Ensure max_iterations doesn't exceed the number of candidates found
+        actual_iterations = min(max_iterations, len(rotations))
 
+        for iteration in range(actual_iterations):
+            ref_rotation = rotations[iteration]
             # Vectorized computation of misorientations for all candidates at once
-            misorientation_angles = (ref_rotation * rotations.inv()).magnitude()
+            delta_rotations = ref_rotation.inv() * rotations
+            misorientation_angles_rad = delta_rotations.magnitude()
+            misorientation_angles_deg = np.degrees(misorientation_angles_rad)
 
-            # Get indices of orientations within threshold
-            similar_indices = np.where(misorientation_angles < orientation_threshold)[0]
+            # Get indices (within the candidate list) of orientations within threshold
+            similar_indices = np.where(
+                misorientation_angles_deg < orientation_threshold
+            )[0]
+
             if len(similar_indices) >= min_required_matches:
-                # Find symmetry equivalent orientations for all similar candidates at once
+                similar_orientations_euler = []
+                # Find symmetry equivalent orientations for all similar candidates
                 for idx in similar_indices:
-                    # Find the closest symmetry equivalent
-                    sym_equivalent = self._find_symmetry_equivalent_orientation(
-                        ref_rotation, rotations[idx]
+                    # Find the closest symmetry equivalent to the *reference* rotation
+                    sym_equivalent_euler = self._find_symmetry_equivalent_orientation(
+                        ref_rotation,
+                        rotations[idx],  # Use rotations[idx] here too
                     )
-                    similar_orientations.append(sym_equivalent)
+                    similar_orientations_euler.append(sym_equivalent_euler)
 
-                mean_orientation = (
-                    R.from_euler("zxz", np.array(similar_orientations), degrees=True)
-                    .mean()
-                    .as_euler("zxz", degrees=True)
-                )
+                # Calculate the mean of the symmetry-adjusted similar orientations
+                if similar_orientations_euler:
+                    mean_rotation = R.from_euler(
+                        "zxz", np.array(similar_orientations_euler), degrees=True
+                    ).mean()
+                    mean_orientation = mean_rotation.as_euler("zxz", degrees=True)
+                else:
+                    # This case should ideally not be reached if len(similar_indices) >= min_required_matches
+                    mean_orientation = None
+
                 success = True
-                break
+                best_orientation = (
+                    mean_orientation
+                    if mean_orientation is not None
+                    else best_orientation
+                )
+                break  # Found a good consensus
 
         if not success:
-            mean_orientation = None
             logger.warning(
-                f"Failed to find best orientation after {max_iterations} iterations"
+                f"Failed to find consensus orientation after {actual_iterations} iterations. "
+                f"Best guess is the closest match: {best_orientation}"
             )
+            # Keep best_orientation as the closest match if no consensus found
+            mean_orientation = None  # Ensure mean is None if failed
 
         return OrientationResult(
             query_vector=query_vector,
