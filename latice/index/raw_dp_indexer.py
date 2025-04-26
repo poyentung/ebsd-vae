@@ -1,20 +1,23 @@
-"""
-Indexer for raw (non-latent) diffraction patterns.
-"""
+"""Indexer for raw (non-latent) diffraction patterns."""
 
+from __future__ import annotations
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 from numpy.typing import NDArray
-import pandas as pd
 from rich.progress import (
     Progress,
     SpinnerColumn,
     TimeElapsedColumn,
     BarColumn,
     TextColumn,
+)
+from latice.index.chroma_db import (
+    ChromaLatentVectorDatabase,
+    ChromaLatentVectorDatabaseConfig,
 )
 from latice.index.faiss_db import (
     FaissLatentVectorDatabase,
@@ -32,22 +35,28 @@ class RawIndexerConfig:
     Attributes:
         pattern_path: Path to diffraction patterns numpy file (.npy)
         angles_path: Path to orientation angles numpy file (.npy)
+        db_type: Type of vector database to use ("faiss" or "chroma").
+        persist_directory: Directory to persist the database. Behavior depends on db_type.
+                           For FAISS, the .npz file will be saved here.
+                           For ChromaDB, this is the persistence directory.
+        collection_name: Name for the ChromaDB collection (used if db_type is "chroma").
         batch_size: Batch size for processing patterns during queries (optional).
         random_seed: Random seed for reproducibility (used for NumPy only).
         image_size: Size of input diffraction patterns (determines dimension).
         top_n: Number of top matches to consider for orientation finding.
         orientation_threshold: Maximum misorientation angle (degrees) to consider similar.
-        db_path: Path for the persisted FAISS database file (.npz).
     """
 
     pattern_path: Path
     angles_path: Path
+    db_type: Literal["faiss", "chroma"] = "chroma"
+    persist_directory: str = ".vector_db"
+    collection_name: str = "raw_patterns"
     batch_size: int = 64
     random_seed: int = 42
     image_size: tuple[int, int] = (128, 128)
     top_n: int = 20
     orientation_threshold: float = 3.0
-    db_path: str = "faiss_raw_index.npz"
 
     @property
     def dimension(self) -> int:
@@ -62,79 +71,108 @@ class RawDiffractionPatternIndexer:
     loading patterns/angles from .npy files, flattening patterns,
     storing them with orientations in a vector database,
     and retrieving the best matching orientations for new patterns.
-    It uses FaissLatentVectorDatabase configured for high dimensions.
     """
 
     def __init__(
-        self, config: RawIndexerConfig, db: FaissLatentVectorDatabase | None = None
+        self,
+        config: RawIndexerConfig,
+        db: FaissLatentVectorDatabase | ChromaLatentVectorDatabase | None = None,
     ) -> None:
         """Initialize the raw indexer.
 
         Args:
             config: Raw indexer configuration parameters.
-            db: Optional pre-configured FaissLatentVectorDatabase. If None, one is created.
+            db: Optional pre-configured database instance. If None, one is created based on config.db_type.
         """
         self.config = config
-        faiss_config = FaissLatentVectorDatabaseConfig(
-            npz_path=self.config.db_path, dimension=self.config.dimension
-        )
-        self.db = (
-            db if db is not None else FaissLatentVectorDatabase(config=faiss_config)
-        )
-
         np.random.seed(self.config.random_seed)
 
-        logger.info(f"Raw index dimensionality: {self.config.dimension}")
-        logger.info(f"Using Faiss database with path: {self.db.npz_path}")
+        if db is not None:
+            self.db = db
+            logger.info(f"Using provided {type(db).__name__} instance.")
+        elif self.config.db_type == "faiss":
+            faiss_path = str(
+                Path(self.config.persist_directory)
+                / f"{self.config.collection_name}_faiss.npz"
+            )
+            faiss_config = FaissLatentVectorDatabaseConfig(
+                npz_path=faiss_path, dimension=self.config.dimension
+            )
+            self.db = FaissLatentVectorDatabase(config=faiss_config)
+            logger.info(f"Initialized FAISS database at {faiss_path}")
+        elif self.config.db_type == "chroma":
+            chroma_config = ChromaLatentVectorDatabaseConfig(
+                persist_directory=self.config.persist_directory,
+                collection_name=self.config.collection_name,
+                dimension=self.config.dimension,
+            )
+            self.db = ChromaLatentVectorDatabase(config=chroma_config)
+            logger.info(
+                f"Initialized ChromaDB with collection '{self.config.collection_name}' in '{self.config.persist_directory}'"
+            )
+        else:
+            raise ValueError(f"Unsupported db_type: {self.config.db_type}")
 
-    def build_dictionary(self) -> None:
-        """Load patterns and angles from .npy files, flatten, and add to the database."""
-        logger.info(f"Loading raw patterns from {self.config.pattern_path}")
+        logger.info(f"Raw index dimensionality: {self.config.dimension}")
+
+    def _load_patterns(self) -> NDArray[np.float32]:
+        """Load patterns from .npy file using memory mapping."""
+        logger.info(
+            f"Loading raw patterns from {self.config.pattern_path} using memory map"
+        )
         try:
-            raw_patterns = np.load(self.config.pattern_path)
+            # Load patterns using memory mapping to avoid loading all into RAM
+            raw_patterns_mmap = np.load(self.config.pattern_path, mmap_mode="r")
         except Exception as e:
             logger.error(
-                f"Failed to load patterns from {self.config.pattern_path}: {e}"
+                f"Failed to load/mmap patterns from {self.config.pattern_path}: {e}"
             )
             raise
+        else:
+            return raw_patterns_mmap
 
+    def _load_orientations(self) -> NDArray[np.float64]:
+        """Load orientations from .npy file using memory mapping."""
         logger.info(f"Loading orientations from {self.config.angles_path}")
         try:
+            # Orientations are assumed to be small enough to load into memory
             with open(self.config.angles_path) as f:
                 lines = f.readlines()[2:]  # Skip header lines
-
             angle_list = []
             for line in lines:
                 angles = [angle for angle in line.strip().split(" ") if angle]
                 angle_list.append(angles)
-            orientations = np.array(angle_list)
-            # orientations = (
-            #     pd.DataFrame(angle_list, columns=["z1", "x", "z2"])
-            #     .astype(float)
-            #     .to_numpy()
-            # )
+            orientations = np.array(angle_list, dtype=np.float64)
         except Exception as e:
             logger.error(
                 f"Failed to load orientations from {self.config.angles_path}: {e}"
             )
             raise
+        else:
+            return orientations
 
-        if len(raw_patterns) != len(orientations):
+    def _validate_and_get_n_patterns(
+        self, raw_patterns_mmap: NDArray[np.float32], orientations: NDArray[np.float64]
+    ) -> int:
+        """Get the number of patterns in the pattern file."""
+        n_patterns = raw_patterns_mmap.shape[0]
+        if n_patterns != len(orientations):
             raise ValueError(
-                f"Number of patterns ({len(raw_patterns)}) does not match number of orientations ({len(orientations)})."
+                f"Number of patterns ({n_patterns}) does not match number of orientations ({len(orientations)})."
             )
+        return n_patterns
 
-        logger.info("Validating and flattening patterns...")
-        n_patterns = len(raw_patterns)
+    def build_dictionary(self) -> None:
+        """Load patterns and angles, process in batches, and add to the database using memory mapping."""
+        raw_patterns_mmap = self._load_patterns()
+        orientations = self._load_orientations()
+        n_patterns = self._validate_and_get_n_patterns(raw_patterns_mmap, orientations)
+
+        logger.info("Processing and adding patterns to DB in batches...")
         flattened_dim = self.config.dimension
         expected_shape = self.config.image_size
-
-        # Prepare patterns in batches to avoid high memory usage if dataset is large
-        # Although FAISS add might handle this, pre-flattening ensures validation.
-        flattened_patterns_list = []
-        batch_size = (
-            self.config.batch_size * 10
-        )  # Use larger batch for processing numpy arrays
+        batch_size = self.config.batch_size
+        n_batches = (n_patterns + batch_size - 1) // batch_size
 
         with Progress(
             SpinnerColumn(),
@@ -143,87 +181,105 @@ class RawDiffractionPatternIndexer:
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             TimeElapsedColumn(),
         ) as progress:
-            task = progress.add_task("[cyan]Processing patterns...", total=n_patterns)
-            for i in range(0, n_patterns, batch_size):
-                batch_end = min(i + batch_size, n_patterns)
-                batch = raw_patterns[i:batch_end]
-                num_in_batch = 0  # Initialize num_in_batch
+            task = progress.add_task(
+                "[cyan]Processing and adding patterns...", total=n_batches
+            )
+            for batch_idx in range(n_batches):
+                batch_start = batch_idx * batch_size
+                batch_end = min((batch_idx + 1) * batch_size, n_patterns)
 
+                # Read only the current batch from the memory-mapped file
+                # This loads only this chunk into RAM
+                try:
+                    current_raw_batch = np.array(
+                        raw_patterns_mmap[batch_start:batch_end]
+                    )
+                    current_orientations = orientations[batch_start:batch_end]
+                    num_in_batch = current_raw_batch.shape[0]
+                except Exception as e:
+                    logger.error(
+                        f"Error reading batch {batch_idx} from memory map or orientations: {e}"
+                    )
+                    raise
+
+                # Process this batch (padding, flattening)
                 processed_batch_list = []
-                if batch.ndim == 2:  # Single pattern case
+                # Determine expected dimensions based on raw input
+                # Handle case where the input file might contain a single 2D pattern flattened
+                if current_raw_batch.ndim == 2 and num_in_batch == 1:
+                    # Reshape assumes it's already flattened to H*W, needs original H,W
+                    # This case is ambiguous without knowing original H, W. Assuming 3D input for batching.
+                    logger.warning(
+                        f"Batch {batch_idx}: Encountered 2D array in batch processing, assuming it's a single pattern. Requires 3D input (B, H, W) for robust batching."
+                    )
+                    # Attempt to process as single pattern, might fail if not H, W shape
                     try:
+                        pattern_to_process = current_raw_batch.reshape(expected_shape)
                         padded_pattern = _pad_pattern_to_size(
-                            batch, expected_shape, f"(index {i})"
+                            pattern_to_process, expected_shape, f"(index {batch_start})"
                         )
                         processed_batch_list.append(padded_pattern)
-                        num_in_batch = 1
                     except ValueError as e:
-                        # Re-raise with more context if needed, or handle appropriately
                         logger.error(
-                            f"Error processing single pattern at index {i}: {e}"
+                            f"Error reshaping/padding single 2D pattern in batch {batch_idx}: {e}"
                         )
-                        raise
-                elif batch.ndim == 3:  # Batch of patterns
-                    b = batch.shape[0]
-                    num_in_batch = b
-                    for pattern_idx in range(b):
-                        current_pattern = batch[pattern_idx]
+                        raise  # Or handle differently
+
+                elif (
+                    current_raw_batch.ndim == 3
+                ):  # Expected case: Batch of patterns (B, H, W)
+                    for pattern_idx in range(num_in_batch):
+                        current_pattern = current_raw_batch[pattern_idx]
                         try:
                             padded_pattern = _pad_pattern_to_size(
                                 current_pattern,
                                 expected_shape,
-                                f"(batch index {i + pattern_idx})",
+                                f"(batch index {batch_start + pattern_idx})",
                             )
                             processed_batch_list.append(padded_pattern)
                         except ValueError as e:
                             logger.error(
-                                f"Error processing pattern in batch at original index {i + pattern_idx}: {e}"
+                                f"Error padding pattern in batch at original index {batch_start + pattern_idx}: {e}"
                             )
                             raise
-
-                else:  # Unsupported dimensions
+                else:
                     raise ValueError(
-                        f"Unsupported pattern dimensions ({batch.ndim}) found starting at index {i}"
+                        f"Unsupported pattern dimensions ({current_raw_batch.ndim}) found in batch {batch_idx}"
                     )
 
                 if not processed_batch_list:
-                    # Skip if errors occurred and list is empty, or handle as needed
-                    progress.update(
-                        task, advance=batch.shape[0] if batch.ndim > 1 else 1
-                    )  # Advance progress anyway
+                    logger.warning(
+                        f"Batch {batch_idx}: No patterns successfully processed, skipping DB add."
+                    )
+                    progress.update(task, advance=1)
                     continue
 
-                # Convert list of processed (potentially padded) patterns back to a NumPy array
                 processed_batch = np.array(processed_batch_list)
+                flattened_batch = processed_batch.reshape(
+                    num_in_batch, flattened_dim
+                ).astype(np.float32)
 
-                # Ensure the processed batch has the correct final dimensions before flattening
-                if processed_batch.ndim == 3:  # Batch case
-                    flattened_batch = processed_batch.reshape(
-                        num_in_batch, flattened_dim
-                    ).astype(np.float32)
-                elif processed_batch.ndim == 2:  # Single pattern case
-                    flattened_batch = (
-                        processed_batch.flatten().astype(np.float32).reshape(1, -1)
+                # Add current_processed_batch to the database
+                try:
+                    self.db.add_vectors(flattened_batch, current_orientations)
+                    logger.debug(
+                        f"Added batch {batch_idx} ({num_in_batch} patterns) to DB."
                     )
-                else:
-                    # This case should ideally not happen if padding/processing is correct
-                    raise RuntimeError(
-                        f"Unexpected shape after processing batch starting at index {i}: {processed_batch.shape}"
+                except Exception as e:
+                    logger.error(
+                        f"Error adding batch {batch_idx} to {type(self.db).__name__}: {e}"
                     )
+                    raise
 
-                flattened_patterns_list.append(flattened_batch)
-                progress.update(
-                    task, advance=num_in_batch
-                )  # Use calculated num_in_batch
-
-        all_flattened_patterns = np.concatenate(flattened_patterns_list, axis=0)
+                progress.update(task, advance=1)
 
         logger.info(
-            f"Adding {len(all_flattened_patterns)} flattened patterns to FAISS database"
+            f"Finished adding {n_patterns} patterns to the database."
+            f" Final DB count: {self.db.get_count()}."
         )
-        self.db.add_vectors(all_flattened_patterns, orientations)
-        logger.info("Saving FAISS database with raw patterns.")
-        self.db.save()
+        if self.config.db_type == "faiss":
+            logger.info("Saving the final database.")
+            self.db.save()
 
     def prepare_pattern(self, pattern: NDArray) -> NDArray[np.float32]:
         """Prepare (validate, pad, and flatten) a single diffraction pattern.
@@ -246,7 +302,7 @@ class RawDiffractionPatternIndexer:
 
         # Flatten and ensure float32
         flattened_pattern = padded_pattern.flatten().astype(np.float32)
-        return flattened_pattern.reshape(1, -1)  # Return as (1, D) for FAISS
+        return flattened_pattern.reshape(1, -1)  # Return as (1, D)
 
     def prepare_patterns_batch(self, patterns: NDArray) -> NDArray[np.float32]:
         """Prepare (validate, pad, and flatten) multiple diffraction patterns.
