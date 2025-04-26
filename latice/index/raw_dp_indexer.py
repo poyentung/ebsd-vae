@@ -202,7 +202,6 @@ class RawDiffractionPatternIndexer:
                     )
                     raise
 
-                # Process this batch (padding, flattening)
                 processed_batch_list = []
                 # Determine expected dimensions based on raw input
                 # Handle case where the input file might contain a single 2D pattern flattened
@@ -223,7 +222,7 @@ class RawDiffractionPatternIndexer:
                         logger.error(
                             f"Error reshaping/padding single 2D pattern in batch {batch_idx}: {e}"
                         )
-                        raise  # Or handle differently
+                        raise
 
                 elif (
                     current_raw_batch.ndim == 3
@@ -259,7 +258,6 @@ class RawDiffractionPatternIndexer:
                     num_in_batch, flattened_dim
                 ).astype(np.float32)
 
-                # Add current_processed_batch to the database
                 try:
                     self.db.add_vectors(flattened_batch, current_orientations)
                     logger.debug(
@@ -296,13 +294,11 @@ class RawDiffractionPatternIndexer:
         try:
             padded_pattern = _pad_pattern_to_size(pattern, self.config.image_size)
         except ValueError as e:
-            # Re-raise or handle error appropriately
             logger.error(f"Error preparing single pattern: {e}")
             raise
 
-        # Flatten and ensure float32
         flattened_pattern = padded_pattern.flatten().astype(np.float32)
-        return flattened_pattern.reshape(1, -1)  # Return as (1, D)
+        return flattened_pattern.reshape(1, -1)
 
     def prepare_patterns_batch(self, patterns: NDArray) -> NDArray[np.float32]:
         """Prepare (validate, pad, and flatten) multiple diffraction patterns.
@@ -326,34 +322,28 @@ class RawDiffractionPatternIndexer:
 
         for i in range(batch_size):
             try:
-                # Use helper function for each pattern in the batch
                 padded_pattern = _pad_pattern_to_size(
                     patterns[i], self.config.image_size, f"(batch index {i})"
                 )
                 processed_patterns_list.append(padded_pattern)
             except ValueError as e:
                 logger.error(f"Error preparing pattern in batch at index {i}: {e}")
-                raise  # Re-raise the error to stop processing
+                raise
 
         if not processed_patterns_list:
-            # This should only happen if the input batch was empty or all patterns failed
             if batch_size > 0:
                 raise RuntimeError("Failed to process any patterns in the batch.")
             else:
-                # Handle empty input batch if necessary, e.g., return empty array
                 return np.empty((0, self.config.dimension), dtype=np.float32)
 
-        # Stack the processed patterns back into a single array
         processed_patterns = np.array(processed_patterns_list)
 
         # Check if the shape after padding is as expected (B, H, W)
         if processed_patterns.shape != (batch_size, *self.config.image_size):
-            # This indicates an issue, maybe an error wasn't caught or logic is flawed
             raise RuntimeError(
                 f"Unexpected batch shape after padding: {processed_patterns.shape}. Expected: {(batch_size, *self.config.image_size)}"
             )
 
-        # Flatten the processed (padded) batch
         flattened_dim = self.config.dimension
         flattened_patterns = processed_patterns.reshape(
             batch_size, flattened_dim
@@ -461,7 +451,6 @@ def _pad_pattern_to_size(
         logger.debug(
             f"Padded pattern {pattern_index_info} from {pattern.shape} to {padded_pattern.shape}"
         )
-        return padded_pattern.astype(pattern.dtype)  # Ensure dtype consistency
+        return padded_pattern.astype(pattern.dtype)
     else:
-        # No padding needed
         return pattern
