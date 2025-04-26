@@ -72,7 +72,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
         self._orientations = []
         self.index = None
 
-        # Check if *both* files exist for loading
         if self.index_path.exists() and self.orientations_path.exists():
             self.load()
         else:
@@ -80,7 +79,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
                 f"Index file ({self.index_path}) or orientations file ({self.orientations_path}) not found. "
                 "Creating a new index."
             )
-            # Ensure parent directory exists
             self.base_path.parent.mkdir(parents=True, exist_ok=True)
             self.index = faiss.index_factory(
                 self.dimension,
@@ -134,7 +132,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             )
             raise TypeError("FAISS add_vectors requires float32 input.")
 
-        # Check for NaNs before normalization
         if np.isnan(latent_vectors).any():
             logger.error("NaN values detected in input latent vectors batch.")
             raise ValueError("NaN values found in latent vectors batch.")
@@ -144,41 +141,27 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             logger.warning("add_vectors called with empty batch. Skipping.")
             return
 
-        # Validate shapes (re-check dimension compatibility)
         self._validate_vectors(latent_vectors, orientations)
 
-        # --- Normalization and Adding ---
         try:
-            # L2 normalize for cosine similarity (since index uses METRIC_INNER_PRODUCT)
             latent_vectors_normalized = self._l2_normalize(latent_vectors)
 
-            # Check for NaNs *after* normalization (can happen if vector norm was zero)
             if np.isnan(latent_vectors_normalized).any():
                 logger.error(
                     "NaN values detected after L2 normalization. Check for zero vectors."
                 )
-                # Optionally: find and log indices of zero vectors
-                # zero_norm_indices = np.where(np.linalg.norm(latent_vectors, axis=1) == 0)[0]
-                # logger.error(f"Zero vectors found at indices: {zero_norm_indices}")
                 raise ValueError(
                     "NaN values after normalization; possible zero vectors."
                 )
 
-            # Add normalized vectors to the FAISS index
             self.index.add(latent_vectors_normalized)
-
-            # Store corresponding orientations in memory (order matters)
-            # Ensure we extend with the correct number matching the added vectors
             self._orientations.extend(list(orientations))
-
             logger.debug(
                 f"Successfully added batch of {batch_size} vectors to FAISS."
                 f" Index total: {self.get_count()}"
             )
         except Exception as e:
             logger.error(f"Error during FAISS index.add or orientation storage: {e}")
-            # Consider implications: is the index now inconsistent with _orientations?
-            # Might need recovery logic or state reset depending on error.
             raise
 
     def create_from_files(
@@ -274,7 +257,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
 
         if len(indices) == 0:
             logger.warning("No similar vectors found for query.")
-            # Return a default 'failed' result for now.
             return OrientationResult(
                 query_vector=query_vector.squeeze(),
                 best_orientation=np.array([np.nan, np.nan, np.nan]),
@@ -293,7 +275,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
         similar_indices_in_candidates = None
         mean_orientation = None
 
-        # Ensure max_iterations doesn't exceed the number of candidates found
         actual_iterations = min(max_iterations, len(rotations))
 
         for iteration in range(actual_iterations):
@@ -302,7 +283,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             misorientation_angles_rad = delta_rotations.magnitude()
             misorientation_angles_deg = np.degrees(misorientation_angles_rad)
 
-            # Get indices (within the candidate list) of orientations within threshold
             similar_indices_in_candidates = np.where(
                 misorientation_angles_deg < orientation_threshold
             )[0]
@@ -317,7 +297,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
                     )
                     similar_orientations_euler.append(sym_equivalent_euler)
 
-                # Calculate the mean of the symmetry-adjusted similar orientations
                 if similar_orientations_euler:
                     mean_rotation = R.from_euler(
                         "zxz", np.array(similar_orientations_euler), degrees=True
@@ -329,7 +308,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
                     )
 
                 success = True
-                # Update best_orientation to the mean if successful
                 best_orientation = (
                     mean_orientation
                     if mean_orientation is not None
@@ -342,17 +320,7 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
                 f"Failed to find consensus orientation after {actual_iterations} iterations. "
                 f"Best guess is the closest match: {best_orientation}"
             )
-            # Keep best_orientation as the closest match if no consensus found
             mean_orientation = None  # Explicitly set mean to None if failed
-
-        # Map similar_indices_in_candidates back to original index IDs if needed,
-        # but the OrientationResult expects indices relative to the candidates list
-        original_indices_of_similar = (
-            indices[similar_indices_in_candidates]
-            if similar_indices_in_candidates is not None
-            else None
-        )
-
         return OrientationResult(
             query_vector=query_vector.squeeze().astype(
                 np.float64
@@ -362,7 +330,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             candidate_orientations=candidate_orientations,
             distances=distances,
             success=success,
-            # Storing indices relative to the candidate list might be more useful here
             similar_indices=similar_indices_in_candidates,
         )
 
@@ -440,15 +407,12 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
         if not self._orientations:
             logger.warning("Saving an index with no orientations added yet.")
 
-        # Ensure parent directory exists
         self.base_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Save FAISS index directly to disk
         index_file = str(self.index_path)
         faiss.write_index(self.index, index_file)
         logger.info(f"Saved FAISS index to {index_file}")
 
-        # Save orientations separately
         orientations_file = str(self.orientations_path)
         orientations_array = np.array(self._orientations)
         np.savez_compressed(orientations_file, orientations=orientations_array)
@@ -468,7 +432,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             )
             raise FileNotFoundError(f"Orientations file missing: {orientations_file}")
 
-        # Load FAISS index using memory mapping
         try:
             self.index = faiss.read_index(index_file, faiss.IO_FLAG_MMAP)
             self.dimension = self.index.d  # Update dimension from loaded index
@@ -477,7 +440,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             logger.error(f"Error loading FAISS index from {index_file}: {e}")
             raise
 
-        # Load orientations
         try:
             data = np.load(orientations_file, allow_pickle=True)
             self._orientations = data["orientations"].tolist()
@@ -486,7 +448,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             logger.error(f"Error loading orientations from {orientations_file}: {e}")
             raise
 
-        # Basic consistency check
         if self.index.ntotal != len(self._orientations):
             logger.warning(
                 f"Loaded index size ({self.index.ntotal}) does not match number of orientations ({len(self._orientations)})."
@@ -507,7 +468,6 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
                 logger.error(f"Error deleting file {file_path}: {e}")
 
         if deleted_files:
-            # Reset in-memory state if files are deleted
             self.index = faiss.index_factory(
                 self.dimension,
                 "Flat",
