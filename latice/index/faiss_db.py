@@ -65,16 +65,23 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             config if config is not None else FaissLatentVectorDatabaseConfig()
         )
         self.dimension = self.config.dimension
-        self.npz_path = Path(self.config.npz_path)
+        self.base_path = Path(self.config.npz_path)
+        self.index_path = self.base_path.with_suffix(".index")
+        self.orientations_path = self.base_path.with_suffix(".orient.npz")
+
         self._orientations = []
         self.index = None
 
-        if self.npz_path.exists():
+        # Check if *both* files exist for loading
+        if self.index_path.exists() and self.orientations_path.exists():
             self.load()
         else:
             logger.info(
-                f"No existing index found at {self.npz_path}. Creating a new one."
+                f"Index file ({self.index_path}) or orientations file ({self.orientations_path}) not found. "
+                "Creating a new index."
             )
+            # Ensure parent directory exists
+            self.base_path.parent.mkdir(parents=True, exist_ok=True)
             self.index = faiss.index_factory(
                 self.dimension,
                 "Flat",
@@ -106,34 +113,73 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
         latent_vectors: NDArray[np.float64] | NDArray[np.float32],
         orientations: NDArray[np.float64],
     ) -> None:
-        """Add latent vectors and their orientations to the database.
+        """Add a batch of latent vectors and their orientations to the database.
+
+        Assumes the input arrays represent a single batch.
 
         Args:
-            latent_vectors: Array of latent vectors (shape: n_samples x dimension).
-                Should be float32 for FAISS efficiency. Will be L2-normalized for cosine similarity.
-            orientations: Array of orientation vectors (shape: n_samples x 3).
+            latent_vectors: Array of latent vectors for the batch (shape: batch_size x dimension).
+                          Must be float32. Will be L2-normalized.
+            orientations: Array of orientation vectors for the batch (shape: batch_size x 3).
         """
+        if self.index is None:
+            logger.error("FAISS index not initialized. Cannot add vectors.")
+            raise RuntimeError("FAISS index is None.")
+
         if latent_vectors.dtype != np.float32:
-            latent_vectors_f32 = latent_vectors.astype(np.float32)
-        else:
-            latent_vectors_f32 = latent_vectors
+            # Explicitly require float32 input as normalization and FAISS expect it.
+            logger.error(
+                f"Input latent_vectors must be float32, got {latent_vectors.dtype}."
+                " The caller (e.g., RawDiffractionPatternIndexer) should handle casting."
+            )
+            raise TypeError("FAISS add_vectors requires float32 input.")
 
-        latent_vectors_f32 = self._l2_normalize(latent_vectors_f32)
+        # Check for NaNs before normalization
+        if np.isnan(latent_vectors).any():
+            logger.error("NaN values detected in input latent vectors batch.")
+            raise ValueError("NaN values found in latent vectors batch.")
 
-        self._validate_vectors(latent_vectors_f32, orientations)
+        batch_size = len(latent_vectors)
+        if batch_size == 0:
+            logger.warning("add_vectors called with empty batch. Skipping.")
+            return
 
-        n_samples = len(latent_vectors_f32)
-        logger.info(
-            f"Adding {n_samples} L2-normalized vectors to FAISS index (cosine sim)."
-        )
+        # Validate shapes (re-check dimension compatibility)
+        self._validate_vectors(latent_vectors, orientations)
 
-        # Add vectors to the index and orientations in the same order
-        self.index.add(latent_vectors_f32)
-        self._orientations.extend(list(orientations))
+        # --- Normalization and Adding ---
+        try:
+            # L2 normalize for cosine similarity (since index uses METRIC_INNER_PRODUCT)
+            latent_vectors_normalized = self._l2_normalize(latent_vectors)
 
-        logger.info(
-            f"Successfully added {n_samples} vectors. Index total: {self.get_count()}"
-        )
+            # Check for NaNs *after* normalization (can happen if vector norm was zero)
+            if np.isnan(latent_vectors_normalized).any():
+                logger.error(
+                    "NaN values detected after L2 normalization. Check for zero vectors."
+                )
+                # Optionally: find and log indices of zero vectors
+                # zero_norm_indices = np.where(np.linalg.norm(latent_vectors, axis=1) == 0)[0]
+                # logger.error(f"Zero vectors found at indices: {zero_norm_indices}")
+                raise ValueError(
+                    "NaN values after normalization; possible zero vectors."
+                )
+
+            # Add normalized vectors to the FAISS index
+            self.index.add(latent_vectors_normalized)
+
+            # Store corresponding orientations in memory (order matters)
+            # Ensure we extend with the correct number matching the added vectors
+            self._orientations.extend(list(orientations))
+
+            logger.debug(
+                f"Successfully added batch of {batch_size} vectors to FAISS."
+                f" Index total: {self.get_count()}"
+            )
+        except Exception as e:
+            logger.error(f"Error during FAISS index.add or orientation storage: {e}")
+            # Consider implications: is the index now inconsistent with _orientations?
+            # Might need recovery logic or state reset depending on error.
+            raise
 
     def create_from_files(
         self, latent_file_path: Path | str, angles_file_path: Path | str
@@ -387,70 +433,80 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
         return self.index.ntotal if self.index else 0
 
     def save(self) -> None:
-        """Save the FAISS index and orientations metadata to a single .npz file."""
+        """Save the FAISS index to a file and orientations to a separate .npz file."""
         if not self.index:
             logger.error("Cannot save. Index not initialized.")
             return
+        if not self._orientations:
+            logger.warning("Saving an index with no orientations added yet.")
 
-        # Serialise FAISS index to bytes
-        index_bytes = faiss.serialize_index(self.index)
+        # Ensure parent directory exists
+        self.base_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Save FAISS index directly to disk
+        index_file = str(self.index_path)
+        faiss.write_index(self.index, index_file)
+        logger.info(f"Saved FAISS index to {index_file}")
+
+        # Save orientations separately
+        orientations_file = str(self.orientations_path)
         orientations_array = np.array(self._orientations)
-
-        # Save both to a .npz file
-        np.savez_compressed(
-            str(self.npz_path.with_suffix(".npz")),
-            faiss_index=index_bytes,
-            orientations=orientations_array,
-        )
-        logger.info(
-            f"Saved FAISS index and metadata to {self.npz_path.with_suffix('.npz')}"
-        )
+        np.savez_compressed(orientations_file, orientations=orientations_array)
+        logger.info(f"Saved orientations to {orientations_file}")
 
     def load(self) -> None:
-        """Load the FAISS index and orientations metadata from a single .npz file."""
-        npz_path = self.npz_path.with_suffix(".npz")
-        if not npz_path.exists():
-            logger.error(f"Cannot load. NPZ file {npz_path} not found.")
-            raise FileNotFoundError("NPZ file missing.")
+        """Load the FAISS index using memory mapping and orientations from a separate .npz file."""
+        index_file = str(self.index_path)
+        orientations_file = str(self.orientations_path)
 
-        data = np.load(str(npz_path), allow_pickle=True)
-        raw_index_data = data["faiss_index"]
-
-        if isinstance(raw_index_data, np.ndarray) and raw_index_data.size == 1:
-            index_bytes = raw_index_data.item()
-        elif isinstance(raw_index_data, bytes):
-            index_bytes = raw_index_data
-        else:
+        if not self.index_path.exists():
+            logger.error(f"Cannot load. Index file {index_file} not found.")
+            raise FileNotFoundError(f"Index file missing: {index_file}")
+        if not self.orientations_path.exists():
             logger.error(
-                f"Unexpected type for faiss_index data: {type(raw_index_data)}"
+                f"Cannot load. Orientations file {orientations_file} not found."
             )
-            raise TypeError(
-                "Loaded faiss_index is not in expected format (bytes or ndarray with bytes)."
-            )
+            raise FileNotFoundError(f"Orientations file missing: {orientations_file}")
 
-        if not isinstance(index_bytes, bytes):
-            logger.error(
-                f"Deserialization error: Expected bytes but got {type(index_bytes)}"
-            )
-            raise TypeError("Could not extract bytes for faiss index deserialization.")
+        # Load FAISS index using memory mapping
+        try:
+            self.index = faiss.read_index(index_file, faiss.IO_FLAG_MMAP)
+            self.dimension = self.index.d  # Update dimension from loaded index
+            logger.info(f"Loaded FAISS index from {index_file} using memory mapping.")
+        except Exception as e:
+            logger.error(f"Error loading FAISS index from {index_file}: {e}")
+            raise
 
-        self.index = faiss.deserialize_index(index_bytes)
-        self.dimension = self.index.d
-        self._orientations = data["orientations"].tolist()
-        logger.info(f"Loaded FAISS index and metadata from {npz_path}")
+        # Load orientations
+        try:
+            data = np.load(orientations_file, allow_pickle=True)
+            self._orientations = data["orientations"].tolist()
+            logger.info(f"Loaded orientations from {orientations_file}")
+        except Exception as e:
+            logger.error(f"Error loading orientations from {orientations_file}: {e}")
+            raise
+
+        # Basic consistency check
+        if self.index.ntotal != len(self._orientations):
+            logger.warning(
+                f"Loaded index size ({self.index.ntotal}) does not match number of orientations ({len(self._orientations)})."
+                " Files might be out of sync."
+            )
 
     def delete_persistence(self) -> None:
-        """Delete the persisted index and metadata files."""
-        deleted_index = False
-        try:
-            if self.npz_path.exists():
-                self.npz_path.unlink()
-                logger.info(f"Deleted index file: {self.npz_path}")
-                deleted_index = True
-        except OSError as e:
-            logger.error(f"Error deleting index file {self.npz_path}: {e}")
+        """Delete the persisted index and orientations files."""
+        deleted_files = False
 
-        if deleted_index:
+        for file_path in [self.index_path, self.orientations_path]:
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                    logger.info(f"Deleted file: {file_path}")
+                    deleted_files = True
+            except OSError as e:
+                logger.error(f"Error deleting file {file_path}: {e}")
+
+        if deleted_files:
             # Reset in-memory state if files are deleted
             self.index = faiss.index_factory(
                 self.dimension,
