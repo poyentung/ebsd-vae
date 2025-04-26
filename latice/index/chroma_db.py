@@ -371,23 +371,18 @@ class ChromaLatentVectorDatabase(LatentVectorDatabaseBase):
 
             if len(similar_indices) >= min_required_matches:
                 similar_orientations_euler = []
-                # Find symmetry equivalent orientations for all similar candidates
                 for idx in similar_indices:
-                    # Find the closest symmetry equivalent to the *reference* rotation
                     sym_equivalent_euler = self._find_symmetry_equivalent_orientation(
-                        ref_rotation,
-                        rotations[idx],  # Use rotations[idx] here too
+                        ref_rotation, rotations[idx]
                     )
                     similar_orientations_euler.append(sym_equivalent_euler)
 
-                # Calculate the mean of the symmetry-adjusted similar orientations
                 if similar_orientations_euler:
                     mean_rotation = R.from_euler(
                         "zxz", np.array(similar_orientations_euler), degrees=True
                     ).mean()
                     mean_orientation = mean_rotation.as_euler("zxz", degrees=True)
                 else:
-                    # This case should ideally not be reached if len(similar_indices) >= min_required_matches
                     mean_orientation = None
 
                 success = True
@@ -403,8 +398,7 @@ class ChromaLatentVectorDatabase(LatentVectorDatabaseBase):
                 f"Failed to find consensus orientation after {actual_iterations} iterations. "
                 f"Best guess is the closest match: {best_orientation}"
             )
-            # Keep best_orientation as the closest match if no consensus found
-            mean_orientation = None  # Ensure mean is None if failed
+            mean_orientation = None
 
         return OrientationResult(
             query_vector=query_vector,
@@ -436,17 +430,11 @@ class ChromaLatentVectorDatabase(LatentVectorDatabaseBase):
         Returns:
             Symmetrically equivalent orientation in ZXZ Euler angles (degrees)
         """
-        # Generate all symmetrically equivalent orientations
         all_sym_rotations = candidate_rotation.inv() * quaternion_symmetry_ops
-
-        # Find which symmetry operation brings candidate closest to reference
         closest_sym_idx = (ref_rotation * all_sym_rotations).magnitude().argmin()
-
-        # Get the orientation in the symmetry frame and return as Euler angles
         sym_equivalent = (
             (all_sym_rotations[closest_sym_idx]).inv().as_euler("zxz", degrees=True)
         )
-
         return sym_equivalent
 
     def find_best_orientations_batch(
@@ -476,8 +464,6 @@ class ChromaLatentVectorDatabase(LatentVectorDatabaseBase):
             for i in range(0, n_vectors, batch_size):
                 end = min(i + batch_size, n_vectors)
                 batch = query_vectors[i:end]
-
-                # Process each vector in the batch
                 for j, vector in enumerate(batch):
                     results.append(self.find_best_orientation(vector, **kwargs))
                     progress.update(task, advance=1)
