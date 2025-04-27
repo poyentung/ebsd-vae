@@ -42,7 +42,7 @@ class VAELoss:
     """
 
     def __init__(self, kl_lambda: float = 0.1):
-        """Initialize VAE loss calculator.
+        """Initialise VAE loss calculator.
 
         Args:
             kl_lambda: Weight for the KL divergence term.
@@ -70,7 +70,7 @@ class VAELoss:
         # Measure prob of seeing image under p(x|z)
         log_pxz = dist.log_prob(x)
 
-        # Normalization factor that normalizes the max likelihood to 1
+        # Normalization factor that normalises the max likelihood to 1
         normalization_factor = torch.log(torch.sqrt(2 * math.pi) * scale)
         log_pxz += normalization_factor
 
@@ -170,7 +170,7 @@ class VAELightningModule(pl.LightningModule):
         optimizer_partial: OptimizerPartial = get_default_optimiser,
         lr_scheduler_partial: SchedulerPartial = get_default_scheduler,
     ) -> None:
-        """Initialize the VAE Lightning Module.
+        """Initialise the VAE Lightning Module.
 
         Args:
             model: The VAE model architecture.
@@ -180,22 +180,13 @@ class VAELightningModule(pl.LightningModule):
         """
         super().__init__()
         self.model = model
-
-        # Loss calculation
         self.loss_fn = VAELoss(kl_lambda=kl_lambda)
-
         self.optimizer_partial = optimizer_partial
         self.lr_scheduler_partial = lr_scheduler_partial
-
-        # latent representation
         self.latent = []
-
-        # Set random seed for reproducibility
         self._set_random_seeds()
-
-        # Initialize validation and training step outputs
         self.validation_step_outputs = []
-        self.training_step_outputs = []  # This was missing
+        self.training_step_outputs = []
 
     def _set_random_seeds(self, seed: int = 42) -> None:
         """Set random seeds for reproducibility.

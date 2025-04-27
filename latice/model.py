@@ -67,10 +67,10 @@ class VariationalAutoEncoder(nn.Module):
 
     @staticmethod
     def weights_init(m: nn.Module) -> None:
-        """Initialize network weights using standard initialization techniques.
+        """Initialise network weights using standard initialisation techniques.
 
         Args:
-            m: A PyTorch module whose weights will be initialized.
+            m: A PyTorch module whose weights will be initialised.
         """
         classname = m.__class__.__name__
         if classname.find("Conv") != -1:

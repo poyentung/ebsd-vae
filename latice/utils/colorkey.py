@@ -70,7 +70,7 @@ class ColorKeyGenerator:
         Returns:
             List[int]: RGB color as a list of 3 integers (0-255).
         """
-        # Normalize the zone axis
+        # Normalise the zone axis
         zone_axis = np.asarray(zone_axis) / np.linalg.norm(zone_axis)
 
         # Get 24 symmetric vectors, size = [24,3]
@@ -123,7 +123,7 @@ class ColorKeyGenerator:
         # Apply gamma correction
         rgb = [sqrt(val) for val in rgb]
 
-        # Normalize and convert to 8-bit
+        # Normalise and convert to 8-bit
         max_val = max(rgb)
         rgb = [int(round(255 * val / max_val)) for val in rgb]
 

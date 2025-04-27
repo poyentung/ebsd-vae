@@ -52,8 +52,8 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
     _orientations: list[NDArray[np.float64]] = field(default_factory=list)
     QUAT_SYM: ClassVar[R] = QUAT_SYM
 
-    def _l2_normalize(self, vectors: NDArray[np.float32]) -> NDArray[np.float32]:
-        """L2-normalize a batch of vectors along axis 1 (row-wise)."""
+    def _l2_normalise(self, vectors: NDArray[np.float32]) -> NDArray[np.float32]:
+        """L2-normalise a batch of vectors along axis 1 (row-wise)."""
         norms = np.linalg.norm(vectors, axis=1, keepdims=True)
         norms[norms == 0] = 1.0
         return vectors / norms
@@ -117,11 +117,11 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
 
         Args:
             latent_vectors: Array of latent vectors for the batch (shape: batch_size x dimension).
-                          Must be float32. Will be L2-normalized.
+                          Must be float32. Will be L2-normalised.
             orientations: Array of orientation vectors for the batch (shape: batch_size x 3).
         """
         if self.index is None:
-            logger.error("FAISS index not initialized. Cannot add vectors.")
+            logger.error("FAISS index not initialised. Cannot add vectors.")
             raise RuntimeError("FAISS index is None.")
 
         if latent_vectors.dtype != np.float32:
@@ -144,9 +144,9 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
         self._validate_vectors(latent_vectors, orientations)
 
         try:
-            latent_vectors_normalized = self._l2_normalize(latent_vectors)
+            latent_vectors_normalised = self._l2_normalise(latent_vectors)
 
-            if np.isnan(latent_vectors_normalized).any():
+            if np.isnan(latent_vectors_normalised).any():
                 logger.error(
                     "NaN values detected after L2 normalization. Check for zero vectors."
                 )
@@ -154,7 +154,7 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
                     "NaN values after normalization; possible zero vectors."
                 )
 
-            self.index.add(latent_vectors_normalized)
+            self.index.add(latent_vectors_normalised)
             self._orientations.extend(list(orientations))
             logger.debug(
                 f"Successfully added batch of {batch_size} vectors to FAISS."
@@ -199,7 +199,7 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
         """Query the database for vectors similar to the query vector (cosine similarity).
 
         Args:
-            query_vector: Query latent vector (1D array). Should be float32. Will be L2-normalized for cosine similarity.
+            query_vector: Query latent vector (1D array). Should be float32. Will be L2-normalised for cosine similarity.
             n_results: Number of similar vectors to return.
 
         Returns:
@@ -224,7 +224,7 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
             )
 
         query_vector_f32 = query_vector.astype(np.float32)
-        query_vector_f32 = self._l2_normalize(query_vector_f32)
+        query_vector_f32 = self._l2_normalise(query_vector_f32)
 
         distances, indices = self.index.search(query_vector_f32, n_results)
 
@@ -402,7 +402,7 @@ class FaissLatentVectorDatabase(LatentVectorDatabaseBase):
     def save(self) -> None:
         """Save the FAISS index to a file and orientations to a separate .npz file."""
         if not self.index:
-            logger.error("Cannot save. Index not initialized.")
+            logger.error("Cannot save. Index not initialised.")
             return
         if not self._orientations:
             logger.warning("Saving an index with no orientations added yet.")

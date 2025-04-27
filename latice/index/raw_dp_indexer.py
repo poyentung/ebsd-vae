@@ -78,7 +78,7 @@ class RawDiffractionPatternIndexer:
         config: RawIndexerConfig,
         db: FaissLatentVectorDatabase | ChromaLatentVectorDatabase | None = None,
     ) -> None:
-        """Initialize the raw indexer.
+        """Initialise the raw indexer.
 
         Args:
             config: Raw indexer configuration parameters.
@@ -99,7 +99,7 @@ class RawDiffractionPatternIndexer:
                 npz_path=faiss_path, dimension=self.config.dimension
             )
             self.db = FaissLatentVectorDatabase(config=faiss_config)
-            logger.info(f"Initialized FAISS database at {faiss_path}")
+            logger.info(f"Initialised FAISS database at {faiss_path}")
         elif self.config.db_type == "chroma":
             chroma_config = ChromaLatentVectorDatabaseConfig(
                 persist_directory=self.config.persist_directory,
@@ -108,7 +108,7 @@ class RawDiffractionPatternIndexer:
             )
             self.db = ChromaLatentVectorDatabase(config=chroma_config)
             logger.info(
-                f"Initialized ChromaDB with collection '{self.config.collection_name}' in '{self.config.persist_directory}'"
+                f"Initialised ChromaDB with collection '{self.config.collection_name}' in '{self.config.persist_directory}'"
             )
         else:
             raise ValueError(f"Unsupported db_type: {self.config.db_type}")

@@ -154,7 +154,7 @@ class TestLatentVectorDatabase:
     def test_init_new_collection(
         self, mock_chromadb_client: tuple[MagicMock, MagicMock], temp_db_path: str
     ) -> None:
-        """Test initialization with new collection."""
+        """Test initialisation with new collection."""
         mock_client, mock_collection = mock_chromadb_client
         mock_client.get_collection.side_effect = ValueError("Collection not found")
 

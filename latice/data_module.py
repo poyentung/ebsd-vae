@@ -52,7 +52,7 @@ class DPdataset(Dataset):
         image_size: tuple[int, int] = (128, 128),
         transform: transforms.Compose | None = None,
     ) -> None:
-        """Initialize the Diffraction Pattern dataset.
+        """Initialise the Diffraction Pattern dataset.
 
         Args:
             path: Path to the .npy file containing diffraction patterns.
@@ -82,7 +82,7 @@ class DPdataset(Dataset):
 
         self.transform = transform or create_default_transform(image_size)
 
-        logger.info(f"Dataset initialized with {len(self)} samples")
+        logger.info(f"Dataset initialised with {len(self)} samples")
 
     def _parse_rotation_angles(self, rot_angles_path: Path) -> pd.DataFrame:
         """Parse rotation angles from the given file.
@@ -156,7 +156,7 @@ class DPDataModule(pl.LightningDataModule):
         seed: int = 42,
         transform: transforms.Compose | None = None,
     ):
-        """Initialize the DataModule.
+        """Initialise the DataModule.
 
         Args:
             path: Path to the .npy file containing diffraction patterns.

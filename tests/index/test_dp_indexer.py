@@ -103,7 +103,7 @@ class TestDiffractionPatternIndexer:
     """Test cases for the DiffractionPatternIndexer class."""
 
     def test_init(self, mock_model, mock_db, test_config):
-        """Test initializing the indexer."""
+        """Test initialising the indexer."""
         # We need to mock build_dictionary to avoid file operations
         with patch.object(DiffractionPatternIndexer, "build_dictionary"):
             indexer = DiffractionPatternIndexer(mock_model, mock_db, test_config)

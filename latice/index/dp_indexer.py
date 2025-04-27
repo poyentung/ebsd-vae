@@ -65,7 +65,7 @@ class DiffractionPatternIndexer:
         db: LatentVectorDatabase | None = None,
         config: IndexerConfig | None = None,
     ) -> None:
-        """Initialize the indexer with model and database.
+        """Initialise the indexer with model and database.
 
         Args:
             model: Trained VAE model for encoding patterns

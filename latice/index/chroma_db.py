@@ -58,7 +58,7 @@ class ChromaLatentVectorDatabase(LatentVectorDatabaseBase):
     """
 
     def __init__(self, config: ChromaLatentVectorDatabaseConfig | None = None) -> None:
-        """Initialize the latent vector database.
+        """Initialise the latent vector database.
 
         Args:
             config: Configuration for the database
@@ -471,11 +471,7 @@ class ChromaLatentVectorDatabase(LatentVectorDatabaseBase):
         return results
 
     def get_count(self) -> int:
-        """Get the number of vectors in the database.
-
-        Returns:
-            Count of vectors in the database
-        """
+        """Get the number of vectors in the database."""
         return self.collection.count()
 
     def delete_collection(self) -> None:

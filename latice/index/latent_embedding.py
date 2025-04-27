@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -13,6 +13,7 @@ from latice.index.chroma_db import (
     ChromaLatentVectorDatabase,
     ChromaLatentVectorDatabaseConfig,
 )
+from latice.index.faiss_db import FaissLatentVectorDatabaseConfig
 from latice.model import VariationalAutoEncoder
 
 logger = logging.getLogger(__name__)
@@ -40,12 +41,12 @@ class IndexerConfig:
         random_seed: Random seed for reproducibility
     """
 
+    model: VariationalAutoEncoder
+    db_config: ChromaLatentVectorDatabaseConfig | FaissLatentVectorDatabaseConfig
     batch_size: int = 64
     n_cpu: int = 4
     image_size: Tuple[int, int] = (128, 128)
     inplanes: int = 32
-    model: VariationalAutoEncoder
-    db_config: ChromaLatentVectorDatabaseConfig = ChromaLatentVectorDatabaseConfig()
 
 
 class LatentVectorDataset(Dataset):
@@ -84,7 +85,7 @@ class DiffractionPatternIndexer:
     def __init__(
         self, config: Optional[IndexerConfig] = None, device: torch.device | None = None
     ) -> None:
-        """Initialize the diffraction pattern indexer.
+        """Initialise the diffraction pattern indexer.
 
         Args:
             model_path: Path to the trained VAE model
