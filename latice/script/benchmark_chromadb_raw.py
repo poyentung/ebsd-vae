@@ -1,5 +1,7 @@
 import logging
+import fire
 import numpy as np
+import pandas as pd
 import time
 from numpy.typing import NDArray
 from pathlib import Path
@@ -112,13 +114,11 @@ def main(
     logger.info(f"Standard deviation of time per pattern: {std_dev_time:.4f} seconds")
 
     # Save the times to CSV
-    import pandas as pd
     df_times = pd.DataFrame(all_index_times, columns=["index_time"])
     df_times.to_csv(output_path, index=False)
     logger.info(f"Times saved to {output_path}")
 
 
 if __name__ == "__main__":
-    import fire
     fire.Fire(main)
 
