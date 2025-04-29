@@ -103,6 +103,10 @@ def main(
             orientation_threshold=orientation_threshold,
         ),
     )
+    
+    # Starting the statistics calculation
+    logger.info(f"Starting to index {n_samples} patterns...")
+    
     all_index_times = time_indexing(
         batch_patterns=batch_patterns, indexer=latent_indexer, n_samples=n_samples
     )
