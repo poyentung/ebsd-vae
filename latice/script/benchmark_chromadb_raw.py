@@ -1,16 +1,15 @@
+import logging
 import fire
 import numpy as np
+import pandas as pd
+import time
 from numpy.typing import NDArray
 from pathlib import Path
-import logging
-
-import pandas as pd
 from latice.index.chroma_db import (
     ChromaLatentVectorDatabaseConfig,
     ChromaLatentVectorDatabase,
 )
 from latice.index.raw_dp_indexer import RawDiffractionPatternIndexer, RawIndexerConfig
-import time
 from rich.progress import (
     Progress,
     SpinnerColumn,
@@ -19,8 +18,9 @@ from rich.progress import (
     TextColumn,
 )
 
+# Basic logging configuration
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 def time_indexing(
     batch_patterns: NDArray[np.float32],
@@ -52,7 +52,9 @@ def time_indexing(
             end_time = time.time()
             index_time = end_time - start_time
             all_index_times.append(index_time)
+
             progress.update(task, advance=1, time_elapsed=index_time)
+
     return all_index_times
 
 
@@ -68,6 +70,9 @@ def main(
     persist_directory: str = "notebook/.chroma_db_raw",
     output_path: Path = "benchmark_chromadb_raw.csv",
 ):
+    logger.info(f"Starting the pattern indexing process...")
+
+    # Load the pattern data
     batch_patterns = np.load(pattern_path, mmap_mode="r")
     raw_dimension = image_size[0] * image_size[1]
     logger.info(f"Raw pattern dimension: {raw_dimension}")
@@ -90,21 +95,30 @@ def main(
         db=chroma_raw_db,
     )
 
+    # Starting the statistics calculation
+    logger.info(f"Starting to index {n_samples} patterns...")
+
+    # Call the indexing function
     all_index_times = time_indexing(
         batch_patterns=batch_patterns, raw_indexer=raw_indexer, n_samples=n_samples
     )
+
+    logger.info("Finished indexing patterns.")
+
+    # Calculate the mean and standard deviation
+    mean_time = np.mean(all_index_times)
+    std_dev_time = np.std(all_index_times)
+
+    # Log the calculated statistics
+    logger.info(f"Mean time per pattern: {mean_time:.4f} seconds")
+    logger.info(f"Standard deviation of time per pattern: {std_dev_time:.4f} seconds")
+
+    # Save the times to CSV
     df_times = pd.DataFrame(all_index_times, columns=["index_time"])
     df_times.to_csv(output_path, index=False)
     logger.info(f"Times saved to {output_path}")
-    logger.info(f"Mean time per pattern: {np.mean(all_index_times):.4f} seconds")
-    logger.info(
-        f"Standard deviation of time per pattern: {np.std(all_index_times):.4f} seconds"
-    )
-
-
-def _main():
-    fire.Fire(main)
 
 
 if __name__ == "__main__":
-    _main()
+    fire.Fire(main)
+
